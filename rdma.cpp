@@ -392,6 +392,18 @@ static std::vector<int> send_handle_bitmap(struct context * ctx)
 	return available;
 }
 
+#define clip_bit(num,mask)\
+((num)&(~(1<<(7-(mask)))))|((num)^(1<<(7-(mask))))
+
+static void update_bitmap(struct context *ctx, int index)
+{
+	auto& bitmap= ctx->bitmap[0];
+	int row=index/8;
+	int col=8-index%8;
+	ctx->bitmap[0][row]=clip_bit(ctx->bitmap[0][row],col);
+	return ;
+}
+
 static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
