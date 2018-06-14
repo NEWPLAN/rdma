@@ -410,7 +410,7 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 			}
 		case IBV_WC_RDMA_WRITE:
 			{
-				//log_info("IBV_WC_RDMA_WRITE\n");
+				log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
 				break;
 			}
 		case IBV_WC_RDMA_READ:
@@ -575,7 +575,6 @@ static struct ibv_pd * rc_get_pd(struct rdma_cm_id *id)
 static void _build_params(struct rdma_conn_param *params)
 {
 	memset(params, 0, sizeof(*params));
-
 	params->initiator_depth = params->responder_resources = 1;
 	params->rnr_retry_count = 7; /* infinite retry */
 	params->retry_count = 7;
@@ -605,8 +604,8 @@ static void _build_qp_attr(struct ibv_qp_init_attr *qp_attr, struct rdma_cm_id *
 	qp_attr->recv_cq = ctx->cq;
 	qp_attr->qp_type = IBV_QPT_RC;
 
-	qp_attr->cap.max_send_wr = MAX_CONCURRENCY + 2;
-	qp_attr->cap.max_recv_wr = MAX_CONCURRENCY + 2;
+	qp_attr->cap.max_send_wr = MAX_CONCURRENCY + 2+1;
+	qp_attr->cap.max_recv_wr = MAX_CONCURRENCY + 2+1;
 	qp_attr->cap.max_send_sge = 1;
 	qp_attr->cap.max_recv_sge = 1;
 }
@@ -616,7 +615,6 @@ static void _build_connection(struct rdma_cm_id *id, bool is_server)
 	struct ibv_qp_init_attr qp_attr;
 	_build_context(id, is_server);
 	_build_qp_attr(&qp_attr, id);
-
 	struct context *ctx = (struct context *)id->context;
 	TEST_NZ(rdma_create_qp(id, ctx->pd, &qp_attr));
 }
@@ -625,17 +623,15 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 {
 	struct context *new_ctx = (struct context *)id->context;
 
-
 	for (int index = 0; index < MAX_CONCURRENCY; index++)
 	{
 		posix_memalign((void **)(&(new_ctx->buffer[index])), sysconf(_SC_PAGESIZE), BUFFER_SIZE);
 		TEST_Z(new_ctx->buffer_mr[index] = ibv_reg_mr(rc_get_pd(id), new_ctx->buffer[index], BUFFER_SIZE, IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
-		printf("buffer %d :%p\n", index, new_ctx->buffer_mr[index]->addr);
-
+		//printf("buffer %d :%p\n", index, new_ctx->buffer_mr[index]->addr);
 		posix_memalign((void **)(&(new_ctx->ack[index])), sysconf(_SC_PAGESIZE), sizeof(_ack_));
 		TEST_Z(new_ctx->ack_mr[index] = ibv_reg_mr(rc_get_pd(id), new_ctx->ack[index],
 		                                sizeof(_ack_), IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
-		printf("ack %d :%p\n", index, new_ctx->ack_mr[index]->addr);
+		//printf("ack %d :%p\n", index, new_ctx->ack_mr[index]->addr);
 	}
 	log_info("register %d tx_buffer and rx_ack\n", MAX_CONCURRENCY);
 
@@ -659,6 +655,7 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 		                                   IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ));
 		printf("bitmap %d :%p\n", index, new_ctx->bitmap_mr[index]->addr);
 	}
+	log_info("register bitmap (index:0 for remote read) and (index:1 for receive the peer data)\n");
 #endif
 	struct ibv_recv_wr wr, *bad_wr = NULL;
 	struct ibv_sge sge;
