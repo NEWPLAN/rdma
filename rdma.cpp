@@ -90,7 +90,7 @@ void log_info(const char *format, ...)
 
 
 
-static void _write_remote(struct rdma_cm_id *id, uint32_t len, uint32_t index, int opcode)
+static void _write_remote(struct rdma_cm_id *id, uint32_t len, uint32_t index, ibv_wr_opcode opcode)
 {
 	struct context *new_ctx = (struct context *)id->context;
 
@@ -169,7 +169,6 @@ static std::vector<int> recv_handle_bitmap(struct context * ctx)
 	{
 		unsigned char res = ctx->bitmap[0][index] ^ ctx->bitmap[1][index];
 		if (res == 0)continue;
-		empty = false;
 
 		for (int bit = 0; bit < 8; bit++)
 		{
@@ -177,7 +176,7 @@ static std::vector<int> recv_handle_bitmap(struct context * ctx)
 			{
 				ctx->bitmap[0][index] = (ctx->bitmap[0][index] & (~(0x1 << bit))) |
 				                        (ctx->bitmap[1][index] & (0x1 << bit));
-				available.append(index * 8 + (8 - bit));
+				available.push_back(index * 8 + (8 - bit));
 			}
 
 		}
@@ -246,7 +245,7 @@ static void* corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t& recv_len)
 			{
 				log_info("IBV_WC_RDMA_READ\n");
 				std::vector<int> available = recv_handle_bitmap(ctx);
-				while (available.length() == 0)
+				while (available.size() == 0)
 				{
 					std::this_thread::sleep_for(std::chrono::microseconds(5));
 					log_info("POST read again\n");
@@ -356,7 +355,7 @@ static std::vector<int> send_handle_bitmap(struct context * ctx)
 			{
 				ctx->bitmap[0][index] = (ctx->bitmap[0][index] & (~(0x1 << bit))) |
 				                        (~(ctx->bitmap[0][index] & (0x1 << bit)));
-				available.append(index * 8 + (8 - bit));
+				available.push_back(index * 8 + (8 - bit));
 			}
 		}
 	}
@@ -409,7 +408,7 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 				//log_info("IBV_WC_RDMA_READ\n");
 				log_info("IBV_WC_RDMA_READ\n");
 				std::vector<int> available = send_handle_bitmap(ctx);
-				while (available.length() == 0)
+				while (available.size() == 0)
 				{
 					std::this_thread::sleep_for(std::chrono::microseconds(5));
 					log_info("POST read again\n");
@@ -641,7 +640,7 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 	log_info("register rx_k_exch (index:0) and tx_k_exch (index:1)\n");
 
 #ifdef _ENABLE_READ_
-	for (int index = 0; index < 2 index++)
+	for (int index = 0; index < 2; index++)
 	{
 		posix_memalign((void **)(&(new_ctx->bitmap[index])), sysconf(_SC_PAGESIZE), (MAX_CONCURRENCY + 7) / 8);
 		TEST_Z(new_ctx->bitmap_mr[index] = ibv_reg_mr(rc_get_pd(id),
