@@ -93,7 +93,7 @@ static void post_send(struct rdma_cm_id *id, ibv_wr_opcode opcode)
 	/* prepare the scatter/gather entry */
 	memset(&sge, 0, sizeof(sge));
 	sge.addr = (uintptr_t)new_ctx->bitmap[1];
-	sge.length = (MAX_CONCURRENCY + 7) / 8;
+	sge.length = MAX_CONCURRENCY;
 	sge.lkey = new_ctx->bitmap_mr[1]->lkey;
 
 	/* prepare the send work request */
