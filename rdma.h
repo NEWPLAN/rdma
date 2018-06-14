@@ -78,7 +78,7 @@ struct context
 #ifdef _ENABLE_READ_
 	/**used for bitmap**/
 	char *			 bitmap[2];
-	struct ibv_mr*   bitmap_mr[2];
+	struct ibv_mr*   bitmap_mr[2];/*expose index 0 to peer for reading*/
 	uint64_t		 peer_bitmap_addr;
 	uint32_t		 peer_bitmap_rkey;
 #endif

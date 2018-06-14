@@ -215,7 +215,7 @@ static void* corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t& recv_len)
 
 				_post_receive(id, wc->imm_data);
 				_ack_remote(id, wc->imm_data);
-				log_info("recv data: %s\n", _data);
+				//log_info("recv data: %s\n", _data);
 				break;
 			}
 		case IBV_WC_RECV:
@@ -232,6 +232,11 @@ static void* corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t& recv_len)
 						printf("client[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
 						printf("server ack %d: %p  ", index, ctx->peer_addr[index]);
 						printf("my buffer addr: %d %p\n", index, ctx->buffer_mr[index]->addr);
+					}
+					ctx->peer_bitmap_addr=ctx->k_exch[1]->bitmap.addr;
+					ctx->peer_bitmap_rkey=ctx->k_exch[1]->bitmap.rkey;
+					{
+						printf("peer bitmap addr : %p\n peer bitmap rkey: %u\n",ctx->peer_bitmap_addr,ctx->peer_bitmap_rkey);
 					}
 				}
 				break;
@@ -391,6 +396,11 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 						printf("server[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
 						printf("client buffer %d: %p\n", index, ctx->peer_addr[index]);
 						printf("my ach addr: %d %p\n", index, ctx->ack_mr[index]->addr);
+					}
+					ctx->peer_bitmap_addr=ctx->k_exch[1]->bitmap.addr;
+					ctx->peer_bitmap_rkey=ctx->k_exch[1]->bitmap.rkey;
+					{
+						printf("peer bitmap addr : %p\n peer bitmap rkey: %u\n",ctx->peer_bitmap_addr,ctx->peer_bitmap_rkey);
 					}
 					/**send one tensor...**/
 					send_tensor(id, 0);
@@ -707,6 +717,8 @@ static void _on_connection(struct rdma_cm_id *id, bool is_server)
 		}
 
 	}
+	new_ctx->k_exch[0]->bitmap.addr=(uintptr_t)(new_ctx->bitmap_mr[0]->addr);
+	new_ctx->k_exch[0]->bitmap.rkey=new_ctx->bitmap_mr[0]->rkey;
 
 
 	//send to myself info to peer
