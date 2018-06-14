@@ -108,8 +108,8 @@ static void post_send(struct rdma_cm_id *id, ibv_wr_opcode opcode)
     sr.num_sge = 1;
     sr.opcode = opcode;
     sr.send_flags = IBV_SEND_SIGNALED;
-    sr.wr.rdma.remote_addr = new_ctx->peer_bitmap_addr.addr;
-	sr.wr.rdma.rkey = new_ctx->peer_bitmap_addr.rkey;
+    sr.wr.rdma.remote_addr = new_ctx->peer_bitmap_addr;
+	sr.wr.rdma.rkey = new_ctx->peer_bitmap_rkey;
     /* there is a Receive Request in the responder side, so we won't get any into RNR flow */
     TEST_NZ(ibv_post_send(res->qp, &sr, &bad_wr));
 }
