@@ -1,6 +1,5 @@
 #include "rdma.h"
 
-#define _____rdma 11111
 
 #define __RDMA_SLOW__ 1
 

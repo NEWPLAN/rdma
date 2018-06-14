@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include <pthread.h>
-
+#define _ENABLE_READ_ 
 #include <rdma/rdma_cma.h>
 
 #define MAX_CONCURRENCY 4

@@ -22,9 +22,9 @@ clean:
 	rm -f *.o ${APPS} *.txt
 
 server:
-	./rdma --server 12.12.12.2
+	./rdma --server 12.12.11.19
 client:
-	./rdma --server 12.12.12.2 --client 12.12.12.2
+	./rdma --server 12.12.11.19 --client 12.12.11.18
 
 syn:
 	scp newplan@12.12.11.18:/home/newplan/rdma_test/src/Makefile ./
