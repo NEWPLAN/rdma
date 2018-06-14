@@ -425,23 +425,26 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 					ctx->peer_bitmap_addr=ctx->k_exch[1]->bitmap.addr;
 					ctx->peer_bitmap_rkey=ctx->k_exch[1]->bitmap.rkey;
 					{
-						printf("peer bitmap addr : %p\n peer bitmap rkey: %u\n",ctx->peer_bitmap_addr,ctx->peer_bitmap_rkey);
+						printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n",ctx->peer_bitmap_addr,ctx->peer_bitmap_rkey);
 					}
 					/**send one tensor...**/
-					send_tensor(id, 0);
+					//send_tensor(id, 0);
+					post_send(id,IBV_WR_RDMA_READ);//read from peer data
 					mem_used++;
 				}
 				break;
 			}
 		case IBV_WC_RDMA_WRITE:
 			{
-				log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
+				//log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
 				break;
 			}
 		case IBV_WC_RDMA_READ:
 			{
 				//log_info("IBV_WC_RDMA_READ\n");
-				log_info("IBV_WC_RDMA_READ\n");
+				log_info("IBV_WC_RDMA_READ, sleep for 1000 seconds\n");
+				log_info("read message: %c\n",ctx->bitmap[1][0]);
+				std::this_thread::sleep_for(std::chrono::seconds(1000));
 				std::vector<int> available = send_handle_bitmap(ctx);
 				while (available.size() == 0)
 				{
@@ -464,39 +467,6 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 			break;
 
 	}
-
-	/*if (wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM)
-	{
-		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
-		//log_info("imm_data is %d\n", wc->imm_data);
-		_post_receive(id, wc->imm_data);
-		send_tensor(id, wc->imm_data);
-	}
-	else if (wc->opcode == IBV_WC_RECV)
-	{
-		switch (ctx->k_exch[1]->id)
-		{
-			case MSG_MR:
-				{
-					log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
-					for (int index = 0; index < MAX_CONCURRENCY; index++)
-					{
-						//reserved the (buffer)key info from server.
-						ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
-						ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
-						struct sockaddr_in* client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
-						printf("server[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
-						printf("client buffer %d: %p\n", index, ctx->peer_addr[index]);
-						printf("my ach addr: %d %p\n", index, ctx->ack_mr[index]->addr);
-					}
-					send_tensor(id, 0);
-					mem_used++;
-				}
-				break;
-			default:
-				break;
-		}
-	}*/
 	return NULL;
 }
 
@@ -681,6 +651,7 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 		printf("bitmap %d :%p\n", index, new_ctx->bitmap_mr[index]->addr);
 	}
 	log_info("register bitmap (index:0 for remote read) and (index:1 for receive the peer data)\n");
+	new_ctx->bitmap[0][0]='a';
 #endif
 	struct ibv_recv_wr wr, *bad_wr = NULL;
 	struct ibv_sge sge;
