@@ -1,0 +1,1001 @@
+#include "rdma.h"
+
+#define _____rdma 11111
+
+#define __RDMA_SLOW__ 1
+
+#include <rdma/rdma_cma.h>
+
+//50 M for default size;
+const size_t BUFFER_SIZE = 5 * 1024 * 1024 + 1;
+#define TIMEOUT_IN_MS 500
+#define TEST_NZ(x) do { if ( (x)) rc_die("error: " #x " failed (returned non-zero)." ); } while (0)
+#define TEST_Z(x)  do { if (!(x)) rc_die("error: " #x " failed (returned zero/null)."); } while (0)
+#define MIN_CQE 10
+
+
+
+#include <string>
+#include <vector>
+#include <iostream>
+#include <thread>
+#include <atomic>
+#include <unordered_map>
+
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
+#include <cstdio>
+
+
+#include <unistd.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <errno.h>
+#include <sys/time.h>
+#include <stdlib.h>
+
+#define IS_CLIENT false
+#define IS_SERVER true
+
+static std::atomic_bool rdma_server_establisted(false);
+static std::atomic_bool rdma_client_establisted(false);
+
+//static bool enable_padding = false;
+
+//static std::mutex rdma_send_mutex;
+//static std::mutex rdma_recv_mutex;
+
+static void rc_die(const char *reason)
+{
+	extern int errno;
+	fprintf(stderr, "%s\nstrerror= %s\n", reason, strerror(errno));
+	exit(-1);
+}
+
+
+
+void log_info(const char *format, ...)
+{
+	char now_time[32];
+	char s[1024];
+	char content[1024];
+	//char *ptr = content;
+	struct tm *tmnow;
+	struct timeval tv;
+	bzero(content, 1024);
+	va_list arg;
+	va_start (arg, format);
+	vsprintf (s, format, arg);
+	va_end (arg);
+
+	gettimeofday(&tv, NULL);
+	tmnow = localtime(&tv.tv_sec);
+
+	sprintf(now_time, "%04d/%02d/%02d %02d:%02d:%02d:%06ld ", \
+	        tmnow->tm_year + 1900, tmnow->tm_mon + 1, tmnow->tm_mday, tmnow->tm_hour, \
+	        tmnow->tm_min, tmnow->tm_sec, tv.tv_usec);
+
+	sprintf(content, "%s %s", now_time, s);
+	printf("%s", content);
+
+}
+
+/*
+12.12.10.XXX
+12.12.11.XXX
+*/
+
+
+
+static void _write_remote(struct rdma_cm_id *id, uint32_t len, uint32_t index, int opcode)
+{
+	struct context *new_ctx = (struct context *)id->context;
+
+	struct ibv_send_wr wr, *bad_wr = NULL;
+	struct ibv_sge sge;
+
+	memset(&wr, 0, sizeof(wr));
+
+	wr.wr_id = (uintptr_t)id;
+
+	wr.opcode = opcode;
+	wr.send_flags = IBV_SEND_SIGNALED;
+	wr.imm_data = index;//htonl(index);
+	wr.wr.rdma.remote_addr = new_ctx->peer_addr[index];
+	wr.wr.rdma.rkey = new_ctx->peer_rkey[index];
+
+	if (len)
+	{
+		wr.sg_list = &sge;
+		wr.num_sge = 1;
+
+		sge.addr = (uintptr_t)new_ctx->buffer[index];
+		sge.length = len;
+		sge.lkey = new_ctx->buffer_mr[index]->lkey;
+	}
+
+	TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
+}
+
+static void _post_receive(struct rdma_cm_id *id, uint32_t index)
+{
+	struct ibv_recv_wr wr, *bad_wr = NULL;
+	memset(&wr, 0, sizeof(wr));
+	wr.wr_id = (uint64_t)id;
+	wr.sg_list = NULL;
+	wr.num_sge = 0;
+
+	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
+}
+static void _ack_remote(struct rdma_cm_id *id, uint32_t index)
+{
+	struct context *new_ctx = (struct context *)id->context;
+
+	struct ibv_send_wr wr, *bad_wr = NULL;
+	struct ibv_sge sge;
+
+	memset(&wr, 0, sizeof(wr));
+
+	wr.wr_id = (uintptr_t)id;
+
+	wr.opcode = IBV_WR_RDMA_WRITE_WITH_IMM;
+	wr.send_flags = IBV_SEND_SIGNALED;
+	wr.imm_data = index;//htonl(index);
+	wr.wr.rdma.remote_addr = new_ctx->peer_addr[index];
+	wr.wr.rdma.rkey = new_ctx->peer_rkey[index];
+
+	new_ctx->ack[index]->index = index;
+
+	{
+		wr.sg_list = &sge;
+		wr.num_sge = 1;
+
+		sge.addr = (uintptr_t)new_ctx->ack[index];
+		sge.length = sizeof(_ack_);
+		sge.lkey = new_ctx->ack_mr[index]->lkey;
+	}
+
+	TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
+}
+
+/*map 0 is used for peer read and bitmap 1 is used to store the peer info*/
+static std::vector<int> recv_handle_bitmap(struct context * ctx)
+{
+	std::vector<int> available;
+	for (int index = 0; index < (MAX_CONCURRENCY + 7 / 8) - 1; index++)
+	{
+		unsigned char res = ctx->bitmap[0][index] ^ ctx->bitmap[1][index];
+		if (res == 0)continue;
+		empty = false;
+
+		for (int bit = 0; bit < 8; bit++)
+		{
+			if (res & (0x1 << bit))
+			{
+				ctx->bitmap[0][index] = (ctx->bitmap[0][index] & (~(0x1 << bit))) |
+				                        (ctx->bitmap[1][index] & (0x1 << bit));
+				available.append(index * 8 + (8 - bit));
+			}
+
+		}
+	}
+
+	return available;
+}
+
+static void* corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t& recv_len)
+{
+	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
+	struct context *ctx = (struct context *)id->context;
+	void* _data = nullptr;
+
+
+	switch (wc->opcode)
+	{
+		case IBV_WC_RECV_RDMA_WITH_IMM:
+			{
+				//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+				//log_info("imm_data is %d\n", wc->imm_data);
+				//uint32_t size = ntohl(wc->imm_data);
+				uint32_t index = wc->imm_data;
+				uint32_t size = *((uint32_t*)(ctx->buffer[index]));
+				char* recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
+
+				recv_len = size;
+				_data = (void*)std::malloc(sizeof(char) * size);
+
+				if (_data == nullptr)
+				{
+					printf("fatal error in recv data malloc!!!!\n");
+					exit(-1);
+				}
+				std::memcpy(_data, recv_data_ptr, size);
+
+				_post_receive(id, wc->imm_data);
+				_ack_remote(id, wc->imm_data);
+				log_info("recv data: %s\n", _data);
+				break;
+			}
+		case IBV_WC_RECV:
+			{
+				if (MSG_MR == ctx->k_exch[1]->id)
+				{
+					log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
+					log_info("imm_data is %d\n", wc->imm_data);
+					for (int index = 0; index < MAX_CONCURRENCY; index++)
+					{
+						ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
+						ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
+						struct sockaddr_in* client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
+						printf("client[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+						printf("server ack %d: %p  ", index, ctx->peer_addr[index]);
+						printf("my buffer addr: %d %p\n", index, ctx->buffer_mr[index]->addr);
+					}
+				}
+				break;
+			}
+		case IBV_WC_RDMA_WRITE:
+			{
+				//log_info("IBV_WC_RDMA_WRITE\n");
+				break;
+			}
+		case IBV_WC_RDMA_READ:
+			{
+				log_info("IBV_WC_RDMA_READ\n");
+				std::vector<int> available = recv_handle_bitmap(ctx);
+				while (available.length() == 0)
+				{
+					std::this_thread::sleep_for(std::chrono::microseconds(5));
+					log_info("POST read again\n");
+				}
+				for (auto& index : available)
+				{
+					log_info("SEND again\n");
+				}
+				break;
+			}
+		case IBV_WC_SEND:
+			{
+				//log_info("IBV_WC_SEND\n");
+				break;
+			}
+		default:
+			break;
+	}
+
+	/*	if (wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM)
+		{
+			//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+			//log_info("imm_data is %d\n", wc->imm_data);
+			//uint32_t size = ntohl(wc->imm_data);
+			uint32_t index = wc->imm_data;
+			uint32_t size = *((uint32_t*)(ctx->buffer[index]));
+			char* recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
+
+			recv_len = size;
+			_data = (void*)std::malloc(sizeof(char) * size);
+
+			if (_data == nullptr)
+			{
+				printf("fatal error in recv data malloc!!!!\n");
+				exit(-1);
+			}
+			std::memcpy(_data, recv_data_ptr, size);
+
+			_post_receive(id, wc->imm_data);
+			_ack_remote(id, wc->imm_data);
+			log_info("recv data: %s\n", _data);
+
+		}
+		else if (wc->opcode == IBV_WC_RECV)
+		{
+			switch (ctx->k_exch[1]->id)
+			{
+				case MSG_MR:
+					{
+						log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
+						log_info("imm_data is %d\n", wc->imm_data);
+						for (int index = 0; index < MAX_CONCURRENCY; index++)
+						{
+							ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
+							ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
+							struct sockaddr_in* client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
+							printf("client[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+							printf("server ack %d: %p  ", index, ctx->peer_addr[index]);
+							printf("my buffer addr: %d %p\n", index, ctx->buffer_mr[index]->addr);
+						}
+					} break;
+				default:
+					break;
+			}
+		}*/
+	return _data;
+}
+
+static void* send_tensor(struct rdma_cm_id *id, uint32_t index)
+{
+	struct context *ctx = (struct context *)id->context;
+
+
+	std::string msg = "Hello, World : index " + std::to_string(index);
+	/*encode msg_length and buffer*/
+	uint32_t msg_len = msg.length();
+
+	if ((msg_len + sizeof(uint32_t)) > BUFFER_SIZE)
+	{
+		perror("fatal error, send msg length is too long\n");
+		exit(-1);
+	}
+
+	char* _buff = ctx->buffer[index];
+	std::memcpy(_buff, (char*)(&msg_len), sizeof(uint32_t));
+	_buff += sizeof(uint32_t);
+	std::memcpy(_buff, msg.c_str(), msg_len);
+	_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE_WITH_IMM);
+
+	return NULL;
+}
+
+
+static std::vector<int> send_handle_bitmap(struct context * ctx)
+{
+	std::vector<int> available;
+	bool empty = true;
+	for (int index = 0; index < (MAX_CONCURRENCY + 7 / 8) - 1; index++)
+	{
+		unsigned char res = ctx->bitmap[0][index] ^ ctx->bitmap[1][index];
+		if (res == 0Xff)continue;
+		empty = false;
+
+		for (int bit = 0; bit < 8; bit++)
+		{
+			if (!(res & (0x1 << bit)))//相同,表明可写
+			{
+				ctx->bitmap[0][index] = (ctx->bitmap[0][index] & (~(0x1 << bit))) |
+				                        (~(ctx->bitmap[0][index] & (0x1 << bit)));
+				available.append(index * 8 + (8 - bit));
+			}
+		}
+	}
+	return available;
+}
+
+static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
+{
+	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
+	struct context *ctx = (struct context *)id->context;
+
+	switch (wc->opcode)
+	{
+		case IBV_WC_RECV_RDMA_WITH_IMM:
+			{
+				//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+				//log_info("imm_data is %d\n", wc->imm_data);
+				_post_receive(id, wc->imm_data);
+				send_tensor(id, wc->imm_data);
+				break;
+			}
+		case IBV_WC_RECV:
+			{
+				if (MSG_MR == ctx->k_exch[1]->id)
+				{
+					log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
+					for (int index = 0; index < MAX_CONCURRENCY; index++)
+					{
+						//reserved the (buffer)key info from server.
+						ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
+						ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
+						struct sockaddr_in* client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
+						printf("server[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+						printf("client buffer %d: %p\n", index, ctx->peer_addr[index]);
+						printf("my ach addr: %d %p\n", index, ctx->ack_mr[index]->addr);
+					}
+					/**send one tensor...**/
+					send_tensor(id, 0);
+					mem_used++;
+				}
+				break;
+			}
+		case IBV_WC_RDMA_WRITE:
+			{
+				//log_info("IBV_WC_RDMA_WRITE\n");
+				break;
+			}
+		case IBV_WC_RDMA_READ:
+			{
+				//log_info("IBV_WC_RDMA_READ\n");
+				log_info("IBV_WC_RDMA_READ\n");
+				std::vector<int> available = send_handle_bitmap(ctx);
+				while (available.length() == 0)
+				{
+					std::this_thread::sleep_for(std::chrono::microseconds(5));
+					log_info("POST read again\n");
+				}
+				for (auto& index : available)
+				{
+					log_info("SEND again\n");
+					send_tensor(id, index);
+				}
+				break;
+			}
+		case IBV_WC_SEND:
+			{
+				//log_info("IBV_WC_SEND\n");
+				break;
+			}
+		default:
+			break;
+
+	}
+
+	/*if (wc->opcode == IBV_WC_RECV_RDMA_WITH_IMM)
+	{
+		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+		//log_info("imm_data is %d\n", wc->imm_data);
+		_post_receive(id, wc->imm_data);
+		send_tensor(id, wc->imm_data);
+	}
+	else if (wc->opcode == IBV_WC_RECV)
+	{
+		switch (ctx->k_exch[1]->id)
+		{
+			case MSG_MR:
+				{
+					log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
+					for (int index = 0; index < MAX_CONCURRENCY; index++)
+					{
+						//reserved the (buffer)key info from server.
+						ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
+						ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
+						struct sockaddr_in* client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
+						printf("server[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+						printf("client buffer %d: %p\n", index, ctx->peer_addr[index]);
+						printf("my ach addr: %d %p\n", index, ctx->ack_mr[index]->addr);
+					}
+					send_tensor(id, 0);
+					mem_used++;
+				}
+				break;
+			default:
+				break;
+		}
+	}*/
+	return NULL;
+}
+
+
+
+static void *recv_poll_cq(void *_id)
+{
+	struct ibv_cq *cq = NULL;
+	struct ibv_wc wc[MAX_CONCURRENCY * 2];
+	struct rdma_cm_id *id = (rdma_cm_id *)_id;
+
+	struct context *ctx = (struct context *)id->context;
+	void *ev_ctx = NULL;
+
+	while (true)
+	{
+		TEST_NZ(ibv_get_cq_event(ctx->comp_channel, &cq, &ev_ctx));
+		ibv_ack_cq_events(cq, 1);
+		TEST_NZ(ibv_req_notify_cq(cq, 0));
+
+		int wc_num = ibv_poll_cq(cq, MAX_CONCURRENCY * 2, wc);
+
+		for (int index = 0; index < wc_num; index++)
+		{
+			if (wc[index].status == IBV_WC_SUCCESS)
+			{
+				/*****here to modified recv* wc---->wc[index]****/
+				//printf("in receive poll cq\n");
+				void* recv_data = nullptr;
+				uint32_t recv_len;
+				recv_data = corcurency_recv_by_RDMA(&wc[index], recv_len);
+			}
+			else
+			{
+				printf("\nwc = %s\n", ibv_wc_status_str(wc[index].status));
+				rc_die("poll_cq: status is not IBV_WC_SUCCESS");
+			}
+		}
+	}
+	return NULL;
+}
+static void *send_poll_cq(void *_id)
+{
+	struct ibv_cq *cq = NULL;
+	struct ibv_wc wc[MAX_CONCURRENCY * 2];
+	struct rdma_cm_id *id = (rdma_cm_id *)_id;
+
+
+	struct context *ctx = (struct context *)id->context;
+	void *ev_ctx = NULL;
+
+	int mem_used = 0;
+
+	while (1)
+	{
+		TEST_NZ(ibv_get_cq_event(ctx->comp_channel, &cq, &ev_ctx));
+		ibv_ack_cq_events(cq, 1);
+		TEST_NZ(ibv_req_notify_cq(cq, 0));
+
+		int wc_num = ibv_poll_cq(cq, MAX_CONCURRENCY * 2, wc);
+
+		if (wc_num < 0)
+		{
+			perror("fatal error in ibv_poll_cq, -1");
+			exit(-1);
+		}
+
+		for (int index = 0; index < wc_num; index++)
+		{
+			if (wc[index].status == IBV_WC_SUCCESS)
+			{
+				concurrency_send_by_RDMA(&wc[index], mem_used);
+			}
+			else
+			{
+				printf("\nwc = %s\n", ibv_wc_status_str(wc[index].status));
+				rc_die("poll_cq: status is not IBV_WC_SUCCESS");
+			}
+		}
+		if (mem_used)
+		{
+			//printf("mem_used : %d\n", mem_used);
+			//struct rdma_cm_id *id = (struct rdma_cm_id *)((wc[index])->wr_id);
+			struct context *ctx = (struct context *)id->context;
+			for (mem_used; mem_used < MAX_CONCURRENCY; mem_used++)
+			{
+				send_tensor(id, mem_used);
+			}/*send used next buffer*/
+		}
+	}
+	return NULL;
+}
+
+
+static struct ibv_pd * rc_get_pd(struct rdma_cm_id *id)
+{
+	struct context *ctx = (struct context *)id->context;
+	return ctx->pd;
+}
+
+static void _build_params(struct rdma_conn_param *params)
+{
+	memset(params, 0, sizeof(*params));
+
+	params->initiator_depth = params->responder_resources = 1;
+	params->rnr_retry_count = 7; /* infinite retry */
+	params->retry_count = 7;
+}
+
+static void _build_context(struct rdma_cm_id *id, bool is_server)
+{
+	struct context *s_ctx = (struct context *)malloc(sizeof(struct context));
+	s_ctx->ibv_ctx = id->verbs;
+	TEST_Z(s_ctx->pd = ibv_alloc_pd(s_ctx->ibv_ctx));
+	TEST_Z(s_ctx->comp_channel = ibv_create_comp_channel(s_ctx->ibv_ctx));
+	TEST_Z(s_ctx->cq = ibv_create_cq(s_ctx->ibv_ctx, MAX_CONCURRENCY * 2 + 10, NULL, s_ctx->comp_channel, 0));
+	TEST_NZ(ibv_req_notify_cq(s_ctx->cq, 0));
+	id->context = (void*)s_ctx;
+	if (is_server)
+	{
+		TEST_NZ(pthread_create(&s_ctx->cq_poller_thread, NULL, recv_poll_cq, (void*)id));
+		id->context = (void*)s_ctx;
+	}
+}
+
+static void _build_qp_attr(struct ibv_qp_init_attr *qp_attr, struct rdma_cm_id *id)
+{
+	struct context *ctx = (struct context *)id->context;
+	memset(qp_attr, 0, sizeof(*qp_attr));
+	qp_attr->send_cq = ctx->cq;
+	qp_attr->recv_cq = ctx->cq;
+	qp_attr->qp_type = IBV_QPT_RC;
+
+	qp_attr->cap.max_send_wr = MAX_CONCURRENCY + 2;
+	qp_attr->cap.max_recv_wr = MAX_CONCURRENCY + 2;
+	qp_attr->cap.max_send_sge = 1;
+	qp_attr->cap.max_recv_sge = 1;
+}
+
+static void _build_connection(struct rdma_cm_id *id, bool is_server)
+{
+	struct ibv_qp_init_attr qp_attr;
+	_build_context(id, is_server);
+	_build_qp_attr(&qp_attr, id);
+
+	struct context *ctx = (struct context *)id->context;
+	TEST_NZ(rdma_create_qp(id, ctx->pd, &qp_attr));
+}
+
+static void _on_pre_conn(struct rdma_cm_id *id)
+{
+	struct context *new_ctx = (struct context *)id->context;
+
+
+	for (int index = 0; index < MAX_CONCURRENCY; index++)
+	{
+		posix_memalign((void **)(&(new_ctx->buffer[index])), sysconf(_SC_PAGESIZE), BUFFER_SIZE);
+		TEST_Z(new_ctx->buffer_mr[index] = ibv_reg_mr(rc_get_pd(id), new_ctx->buffer[index], BUFFER_SIZE, IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
+		printf("buffer %d :%p\n", index, new_ctx->buffer_mr[index]->addr);
+
+		posix_memalign((void **)(&(new_ctx->ack[index])), sysconf(_SC_PAGESIZE), sizeof(_ack_));
+		TEST_Z(new_ctx->ack_mr[index] = ibv_reg_mr(rc_get_pd(id), new_ctx->ack[index],
+		                                sizeof(_ack_), IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
+		printf("ack %d :%p\n", index, new_ctx->ack_mr[index]->addr);
+	}
+	log_info("register %d tx_buffer and rx_ack\n", MAX_CONCURRENCY);
+
+	{
+		posix_memalign((void **)(&(new_ctx->k_exch[0])), sysconf(_SC_PAGESIZE), sizeof(_key_exch));
+		TEST_Z(new_ctx->k_exch_mr[0] = ibv_reg_mr(rc_get_pd(id), new_ctx->k_exch[0], sizeof(_key_exch), IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
+
+		posix_memalign((void **)(&(new_ctx->k_exch[1])), sysconf(_SC_PAGESIZE), sizeof(_key_exch));
+		TEST_Z(new_ctx->k_exch_mr[1] = ibv_reg_mr(rc_get_pd(id), new_ctx->k_exch[1], sizeof(_key_exch), IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE));
+
+	}
+	log_info("register rx_k_exch (index:0) and tx_k_exch (index:1)\n");
+
+#ifdef _ENABLE_READ_
+	for (int index = 0; index < 2 index++)
+	{
+		posix_memalign((void **)(&(new_ctx->bitmap[index])), sysconf(_SC_PAGESIZE), (MAX_CONCURRENCY + 7) / 8);
+		TEST_Z(new_ctx->bitmap_mr[index] = ibv_reg_mr(rc_get_pd(id),
+		                                   new_ctx->bitmap[index],
+		                                   (MAX_CONCURRENCY + 7) / 8,
+		                                   IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ));
+		printf("bitmap %d :%p\n", index, new_ctx->bitmap_mr[index]->addr);
+	}
+#endif
+	struct ibv_recv_wr wr, *bad_wr = NULL;
+	struct ibv_sge sge;
+
+	memset(&wr, 0, sizeof(wr));
+
+	wr.wr_id = (uintptr_t)id;
+	wr.sg_list = &sge;
+	wr.num_sge = 1;
+
+	sge.addr = (uintptr_t)(new_ctx->k_exch[1]);
+	sge.length = sizeof(_key_exch);
+	sge.lkey = new_ctx->k_exch_mr[1]->lkey;
+
+
+
+	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
+
+
+	for (uint32_t index = 0; index < MAX_CONCURRENCY; index++)
+	{
+		//log_info("post recv index : %u\n", index);
+		_post_receive(id, index);
+	}
+}
+
+/**server on connection***/
+static void _on_connection(struct rdma_cm_id *id, bool is_server)
+{
+	struct context *new_ctx = (struct context *)id->context;
+
+	int index = 0;
+
+	new_ctx->k_exch[0]->id = MSG_MR;
+	if (is_server)
+		new_ctx->k_exch[0]->md5 = 6666;
+	else
+		new_ctx->k_exch[0]->md5 = 5555;
+
+	log_info("k_exch md5 is %llu\n", new_ctx->k_exch[0]->md5);
+	if (is_server)
+	{
+		for (index = 0; index < MAX_CONCURRENCY; index++)
+		{
+			new_ctx->k_exch[0]->key_info[index].addr = (uintptr_t)(new_ctx->buffer_mr[index]->addr);
+			new_ctx->k_exch[0]->key_info[index].rkey = (new_ctx->buffer_mr[index]->rkey);
+		}
+
+	}
+	else
+	{
+		for (index = 0; index < MAX_CONCURRENCY; index++)
+		{
+			new_ctx->k_exch[0]->key_info[index].addr = (uintptr_t)(new_ctx->ack_mr[index]->addr);
+			new_ctx->k_exch[0]->key_info[index].rkey = (new_ctx->ack_mr[index]->rkey);
+		}
+
+	}
+
+
+	//send to myself info to peer
+	{
+		struct ibv_send_wr wr, *bad_wr = NULL;
+		struct ibv_sge sge;
+
+		memset(&wr, 0, sizeof(wr));
+
+		wr.wr_id = (uintptr_t)id;
+		wr.opcode = IBV_WR_SEND;
+		wr.sg_list = &sge;
+		wr.num_sge = 1;
+		wr.send_flags = IBV_SEND_SIGNALED;
+
+		sge.addr = (uintptr_t)(new_ctx->k_exch[0]);
+		sge.length = sizeof(_key_exch);
+		sge.lkey = new_ctx->k_exch_mr[0]->lkey;
+
+		TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
+	}
+	log_info("share my registed mem rx_buffer for peer write to\n");
+}
+
+
+
+static void _on_disconnect(struct rdma_cm_id *id)
+{
+	struct context *new_ctx = (struct context *)id->context;
+
+	for (int index = 0; index < MAX_CONCURRENCY; index++)
+	{
+		ibv_dereg_mr(new_ctx->buffer_mr[index]);
+		ibv_dereg_mr(new_ctx->ack_mr[index]);
+
+		free(new_ctx->buffer[index]);
+		free(new_ctx->ack[index]);
+	}
+
+	{
+		ibv_dereg_mr(new_ctx->k_exch_mr[0]);
+		ibv_dereg_mr(new_ctx->k_exch_mr[1]);
+
+		free(new_ctx->k_exch[0]);
+		free(new_ctx->k_exch[1]);
+	}
+
+	free(new_ctx);
+}
+
+
+static void recv_RDMA(Adapter& rdma_dapater)
+{
+	struct rdma_cm_event *event = NULL;
+	struct rdma_conn_param cm_params;
+	int connecting_client_cnt = 0;
+	int client_counts = 1;
+	printf("server is inited done (RDMA), waiting for %d client connecting....:)\n", client_counts);
+	_build_params(&cm_params);
+
+	while (rdma_get_cm_event(rdma_dapater.event_channel, &event) == 0)
+	{
+		struct rdma_cm_event event_copy;
+
+		memcpy(&event_copy, event, sizeof(*event));
+		rdma_ack_cm_event(event);
+
+
+		if (event_copy.event == RDMA_CM_EVENT_CONNECT_REQUEST)
+		{
+			_build_connection(event_copy.id, IS_SERVER);
+			_on_pre_conn(event_copy.id);
+			TEST_NZ(rdma_accept(event_copy.id, &cm_params));
+		}
+		else if (event_copy.event == RDMA_CM_EVENT_ESTABLISHED)
+		{
+			_on_connection(event_copy.id, true);
+			rdma_dapater.recv_rdma_cm_id.push_back(event_copy.id);
+
+			struct sockaddr_in* client_addr = (struct sockaddr_in *)rdma_get_peer_addr(event_copy.id);
+			printf("client[%s,%d] is connecting (RDMA) now... \n", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+			connecting_client_cnt++;
+			if (connecting_client_cnt == client_counts)
+				break;
+		}
+		else if (event_copy.event == RDMA_CM_EVENT_DISCONNECTED)
+		{
+			rdma_destroy_qp(event_copy.id);
+			_on_disconnect(event_copy.id);
+			rdma_destroy_id(event_copy.id);
+			connecting_client_cnt--;
+			if (connecting_client_cnt == 0)
+				break;
+		}
+		else
+		{
+			rc_die("unknown event server\n");
+		}
+	}
+	printf("%d clients have connected to my node (RDMA), ready to receiving loops\n", client_counts);
+
+	rdma_server_establisted = true;
+	while (1)
+	{
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+	}
+
+	printf("RDMA recv loops exit now...\n");
+	return;
+}
+
+
+static void rdma_server_init(Adapter& rdma_dapater)
+{
+	int init_loops = 0;
+	struct sockaddr_in sin;
+	printf("init a server (RDMA)....\n");
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;/*ipv4*/
+	sin.sin_port = htons(rdma_dapater.server_port);/*server listen public ports*/
+	sin.sin_addr.s_addr = INADDR_ANY;/*listen any connects*/
+
+	TEST_Z(rdma_dapater.event_channel = rdma_create_event_channel());
+	TEST_NZ(rdma_create_id(rdma_dapater.event_channel, &rdma_dapater.listener, NULL, RDMA_PS_TCP));
+
+	while (rdma_bind_addr(rdma_dapater.listener, (struct sockaddr *)&sin))
+	{
+		std::cerr << "server init failed (RDMA): error in bind socket, will try it again in 2 seconds..." << std::endl;
+		if (init_loops > 10)
+		{
+			rdma_destroy_id(rdma_dapater.listener);
+			rdma_destroy_event_channel(rdma_dapater.event_channel);
+			exit(-1);
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		init_loops++;
+	}
+
+	int client_counts = 1;
+	if (rdma_listen(rdma_dapater.listener, client_counts))
+	{
+		std::cerr << "server init failed (RDMA): error in server listening" << std::endl;
+		rdma_destroy_id(rdma_dapater.listener);
+		rdma_destroy_event_channel(rdma_dapater.event_channel);
+		exit(-1);
+	}
+	recv_RDMA(rdma_dapater);
+
+	//std::thread(recv_RDMA, std::ref(rdma_dapater));
+
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+	return;
+}
+
+
+
+static void rdma_client_init(Adapter& rdma_dapater)
+{
+	std::cout << "client inited (RDMA) start" << std::endl;
+	for (size_t index = 0; index < 1; index++)
+	{
+		struct rdma_cm_id *conn = NULL;
+		struct rdma_event_channel *ec = NULL;
+		std::string local_eth = rdma_dapater.client_ip;/*get each lev ip*/
+		struct sockaddr_in ser_in, local_in;/*server ip and local ip*/
+		int connect_count = 0;
+		memset(&ser_in, 0, sizeof(ser_in));
+		memset(&local_in, 0, sizeof(local_in));
+
+		/*bind remote socket*/
+		ser_in.sin_family = AF_INET;
+		ser_in.sin_port = htons(rdma_dapater.server_port);/*connect to public port remote*/
+		inet_pton(AF_INET, rdma_dapater.server_ip.c_str(), &ser_in.sin_addr);
+
+		/*bind local part*/
+		local_in.sin_family = AF_INET;
+		std::cout << local_eth.c_str() << "----->" << rdma_dapater.server_ip.c_str() << std::endl;
+		inet_pton(AF_INET, local_eth.c_str(), &local_in.sin_addr);
+
+		TEST_Z(ec = rdma_create_event_channel());
+		TEST_NZ(rdma_create_id(ec, &conn, NULL, RDMA_PS_TCP));
+		TEST_NZ(rdma_resolve_addr(conn, (struct sockaddr*)(&local_in), (struct sockaddr*)(&ser_in), TIMEOUT_IN_MS));
+
+		struct rdma_cm_event *event = NULL;
+		struct rdma_conn_param cm_params;
+
+		_build_params(&cm_params);
+		while (rdma_get_cm_event(ec, &event) == 0)
+		{
+			struct rdma_cm_event event_copy;
+			memcpy(&event_copy, event, sizeof(*event));
+			rdma_ack_cm_event(event);
+			if (event_copy.event == RDMA_CM_EVENT_ADDR_RESOLVED)
+			{
+				_build_connection(event_copy.id, IS_CLIENT);
+				_on_pre_conn(event_copy.id);
+				TEST_NZ(rdma_resolve_route(event_copy.id, TIMEOUT_IN_MS));
+			}
+			else if (event_copy.event == RDMA_CM_EVENT_ROUTE_RESOLVED)
+			{
+				TEST_NZ(rdma_connect(event_copy.id, &cm_params));
+			}
+			else if (event_copy.event == RDMA_CM_EVENT_ESTABLISHED)
+			{
+				struct context *ctx = (struct context *)event_copy.id->context;
+				//bs.neighbor_info[lev][index].send_list = nit;
+				TEST_NZ(pthread_create(&ctx->cq_poller_thread, NULL, send_poll_cq, (void*)(event_copy.id)));
+				std::cout << local_eth << " has connected to server[ " << rdma_dapater.server_ip << " , " << rdma_dapater.server_port << " ]" << std::endl;
+
+				{
+					_on_connection(event_copy.id, false);
+				}
+				break;
+			}
+			else if (event_copy.event == RDMA_CM_EVENT_REJECTED)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				connect_count++;
+				_on_disconnect(event_copy.id);
+				rdma_destroy_qp(event_copy.id);
+				rdma_destroy_id(event_copy.id);
+				rdma_destroy_event_channel(ec);
+				if (connect_count > 10 * 600)/*after 600 seconds, it will exit.*/
+				{
+					std::cerr << 600 << "seconds is passed, error in connect to server" << rdma_dapater.server_ip << ", check your network condition" << std::endl;
+					exit(-1);
+				}
+				else
+				{
+					TEST_Z(ec = rdma_create_event_channel());
+					TEST_NZ(rdma_create_id(ec, &conn, NULL, RDMA_PS_TCP));
+					TEST_NZ(rdma_resolve_addr(conn, (struct sockaddr*)(&local_in), (struct sockaddr*)(&ser_in), TIMEOUT_IN_MS));
+				}
+			}
+			else
+			{
+				printf("event = %d\n", event_copy.event);
+				rc_die("unknown event client\n");
+			}
+		}
+	}
+	rdma_client_establisted = true;
+	std::cout << "client inited done" << std::endl;
+	while (1)
+	{
+		std::cout << "main thread sleep for 10 seconds" << std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+	}
+}
+
+
+/*default is BCube(3,2)*/
+void rdma_bcube_init(Adapter& rdma_dapater, bool is_client)
+{
+	printf("in rdma init...\n");
+	if (!is_client)
+		rdma_server_init(rdma_dapater);
+	else
+		rdma_client_init(rdma_dapater);
+	return;
+}
+
+void help(void)
+{
+	std::cout << "Useage:\n";
+	std::cout << "For Server: ./rdma --server server_ip\n";
+	std::cout << "For Client: ./rdma --server server_ip --client client_ip" << std::endl;
+	return;
+}
+
+int main(int argc, char const *argv[])
+{
+	Adapter rdma_adapter;
+	switch (argc)
+	{
+		case 3:
+			rdma_adapter.set_server_ip(argv[2]);
+			rdma_server_init(rdma_adapter);
+		case 5:
+			rdma_adapter.set_server_ip(argv[2]);
+			rdma_adapter.set_client_ip(argv[4]);
+			rdma_client_init(rdma_adapter);
+		default:
+			help();
+			exit(-1);
+			break;
+	}
+	//rdma_bcube_init(rdma_adapter, client);
+	return 0;
+}
