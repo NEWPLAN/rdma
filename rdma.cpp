@@ -435,7 +435,7 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 			}
 		case IBV_WC_RDMA_WRITE:
 			{
-				//log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
+				log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
 				break;
 			}
 		case IBV_WC_RDMA_READ:
