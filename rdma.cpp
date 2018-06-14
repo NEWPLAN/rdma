@@ -87,7 +87,32 @@ void log_info(const char *format, ...)
 12.12.10.XXX
 12.12.11.XXX
 */
+/*for read remote*/
+static void post_send(struct rdma_cm_id *id, ibv_wr_opcode opcode)
+{
+	struct context *new_ctx = (struct context *)id->context;
+	struct ibv_sge sge;
+    struct ibv_send_wr sr, *bad_wr = NULL;
 
+    /* prepare the scatter/gather entry */
+    memset(&sge, 0, sizeof(sge));
+    sge.addr = (uintptr_t)new_ctx->bitmap[1];
+    sge.length = (MAX_CONCURRENCY+7)/8;
+	sge.lkey=new_ctx->bitmap_mr[1]->lkey;
+
+    /* prepare the send work request */
+    memset(&sr, 0, sizeof(sr));
+    sr.next = NULL;
+    sr.wr_id = (uintptr_t)id;;
+    sr.sg_list = &sge;
+    sr.num_sge = 1;
+    sr.opcode = opcode;
+    sr.send_flags = IBV_SEND_SIGNALED;
+    sr.wr.rdma.remote_addr = new_ctx->peer_bitmap_addr.addr;
+	sr.wr.rdma.rkey = new_ctx->peer_bitmap_addr.rkey;
+    /* there is a Receive Request in the responder side, so we won't get any into RNR flow */
+    TEST_NZ(ibv_post_send(res->qp, &sr, &bad_wr));
+}
 
 
 static void _write_remote(struct rdma_cm_id *id, uint32_t len, uint32_t index, ibv_wr_opcode opcode)
@@ -410,7 +435,7 @@ static void* concurrency_send_by_RDMA(struct ibv_wc *wc, int& mem_used)
 			}
 		case IBV_WC_RDMA_WRITE:
 			{
-				log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
+				//log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
 				break;
 			}
 		case IBV_WC_RDMA_READ:
