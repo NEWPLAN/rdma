@@ -614,8 +614,8 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 		printf("bitmap %d :%p\n", index, new_ctx->bitmap_mr[index]->addr);
 	}
 	log_info("register bitmap (index:0 for remote read) and (index:1 for receive the peer data)\n");
-	memcpy(new_ctx->bitmap[0],"abc\0");
-	memcpy(new_ctx->bitmap[1],"000\0");
+	memcpy(new_ctx->bitmap[0],"abc\0",MAX_CONCURRENCY);
+	memcpy(new_ctx->bitmap[1],"000\0",MAX_CONCURRENCY);
 #endif
 	struct ibv_recv_wr wr, *bad_wr = NULL;
 	struct ibv_sge sge;
