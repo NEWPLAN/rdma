@@ -652,6 +652,7 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 	}
 	log_info("register bitmap (index:0 for remote read) and (index:1 for receive the peer data)\n");
 	new_ctx->bitmap[0][0]='a';
+	new_ctx->bitmap[1][0]='0';
 #endif
 	struct ibv_recv_wr wr, *bad_wr = NULL;
 	struct ibv_sge sge;
