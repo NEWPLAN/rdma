@@ -436,6 +436,8 @@ static std::vector<int> send_handle_bitmap(struct context *ctx)
 	// return available;
 }
 
+static clock_t tstart=0;
+bool first=true;
 
 static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, int &mem_used)
 {
@@ -485,12 +487,16 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				//log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n", wc->wr_id);
 				update_bitmap(ctx, wc->wr_id);
 				static long long count = 0 ;
-				static clock_t tstart = clock();
+				if(first)
+				{
+					tstart = clock();
+					first = false;
+				}
 				float delta = 0.00000000000001;
 				if ((++count) % 100000 == 0)
 				{
 					clock_t tend = clock();
-					float time_cost = (tend - tstart + delta) / CLOCKS_PER_SEC;
+					float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
 					printf("time cost: %f, count = %d\n",time_cost,count);
 					log_info("rate: %f Bps, %f Kps, %f Mps, %f Gps\n",
 					         BUFFER_SIZE * count / time_cost,
