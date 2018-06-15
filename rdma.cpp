@@ -302,8 +302,8 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 		std::vector<int> available = recv_handle_bitmap(ctx);
 		if (available.size() == 0)
 		{
-			log_info("current pipline is busing sleep for next query, will sleep 5 seconds\n");
-			std::this_thread::sleep_for(std::chrono::seconds(5));
+			log_info("current pipline is busing sleep for next query, will sleep 1 seconds\n");
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 		else
 		{
@@ -336,8 +336,8 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 
 			}
 		}
-		std::cout<<"\nsending thread will be blocked for 5 seconds"<<std::endl;
-		std::this_thread::sleep_for(std::chrono::seconds(5));
+		std::cout<<"\nsending thread will be blocked for 1 seconds"<<std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 		post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 		break;
 	}
@@ -496,8 +496,8 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		std::vector<int> available = send_handle_bitmap(ctx);
 		if (available.size() == 0)
 		{
-			log_info("current pipline is busing sleep for next query\n");
-			std::this_thread::sleep_for(std::chrono::seconds(10));
+			log_info("current pipline is busing sleep for next query, will sleep for 1 seconds\n");
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
 		else
 		{
@@ -515,8 +515,8 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 
 		}
 
-		std::cout<<"\nsending thread will be blocked for 5 seconds"<<std::endl;
-		std::this_thread::sleep_for(std::chrono::seconds(5));
+		std::cout<<"\nsending thread will be blocked for 1 seconds"<<std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 		post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 		break;
 	}
