@@ -431,6 +431,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	case IBV_WC_RDMA_WRITE:
 	{
 		log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n",wc->wr_id);
+		send_tensor(id, (uint32_t)(wc->wr_id));
 		break;
 	}
 	case IBV_WC_RDMA_READ:
