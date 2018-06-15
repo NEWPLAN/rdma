@@ -487,7 +487,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				static long long count = 0 ;
 				static clock_t tstart = clock();
 				float delta = 0.00000000000001;
-				if ((++count) % 10000 == 0)
+				if ((++count) % 100000 == 0)
 				{
 					clock_t tend = clock();
 					float time_cost = (tend - tstart + delta) / CLOCKS_PER_SEC;
