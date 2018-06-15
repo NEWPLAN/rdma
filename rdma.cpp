@@ -497,17 +497,17 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				float delta = 0.00000000000001;
 				if ((++count) % 100000 == 0)
 				{
-#define netbyte 1000.0
+#define netbyte 1000
 					//clock_t tend = clock();
 					gettimeofday(&now_, NULL);
 					//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
 					float time_cost=(now_.tv_usec-start_.tv_usec)/1000000.0+now_.tv_sec-start_.tv_sec;
 					printf("time cost: %f s, count = %d\n",time_cost,count);
 					log_info("rate: %f bps, %f Kbps, %f Mbps, %f Gbps\n",
-					         BUFFER_SIZE * count / time_cost,
-					         BUFFER_SIZE * count / netbyte / time_cost,
-					         BUFFER_SIZE * count / netbyte / netbyte / time_cost,
-							 BUFFER_SIZE * count / netbyte / netbyte /netbyte/ time_cost
+					        8.0* BUFFER_SIZE * count / time_cost,
+					        8.0* BUFFER_SIZE * count / netbyte / time_cost,
+					        8.0* BUFFER_SIZE * count / netbyte / netbyte / time_cost,
+							8.0* BUFFER_SIZE * count / netbyte / netbyte /netbyte/ time_cost
 					        );
 
 				}
