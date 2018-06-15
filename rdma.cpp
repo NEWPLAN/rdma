@@ -492,10 +492,11 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 					clock_t tend = clock();
 					float time_cost = (tend - tstart + delta) / CLOCKS_PER_SEC;
 					printf("time cost: %f, count = %d\n",time_cost,count);
-					log_info("rate: %f Bps, %f Mps, %f Gps\n",
+					log_info("rate: %f Bps, %f Kps, %f Mps, %f Gps\n",
 					         BUFFER_SIZE * count / time_cost,
 					         BUFFER_SIZE * count / 1024.0 / time_cost,
-					         BUFFER_SIZE * count / 1024.0 / 1024 / time_cost
+					         BUFFER_SIZE * count / 1024.0 / 1024 / time_cost,
+							 BUFFER_SIZE * count / 1024.0 / 1024 /1024/ time_cost
 					        );
 
 				}
