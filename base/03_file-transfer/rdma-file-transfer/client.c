@@ -5,6 +5,7 @@
 #include "messages.h"
 #include <stdarg.h>
 #include <time.h>
+#include <sys/time.h>
 
 struct client_context
 {
@@ -102,10 +103,10 @@ static void send_next_chunk(struct rdma_cm_id *id)
 	ssize_t size = 0;
 
 	//size = read(ctx->fd, ctx->buffer, BUFFER_SIZE);
-	size = BUFFER_SIZE
+	size = BUFFER_SIZE;
 
-	       if (size == -1)
-		       rc_die("read() failed\n");
+	if (size == -1)
+		rc_die("read() failed\n");
 
 	write_remote(id, size);
 }
