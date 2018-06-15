@@ -322,6 +322,29 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 	return NULL;
 }
 
+static void *write_tensor(struct rdma_cm_id *id, uint32_t index)
+{
+	struct context *ctx = (struct context *)id->context;
+
+	std::string msg = "Hello, World : index " + std::to_string(index);
+	/*encode msg_length and buffer*/
+	uint32_t msg_len = msg.length();
+
+	if ((msg_len + sizeof(uint32_t)) > BUFFER_SIZE)
+	{
+		perror("fatal error, send msg length is too long\n");
+		exit(-1);
+	}
+
+	char *_buff = ctx->buffer[index];
+	std::memcpy(_buff, (char *)(&msg_len), sizeof(uint32_t));
+	_buff += sizeof(uint32_t);
+	std::memcpy(_buff, msg.c_str(), msg_len);
+	_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE);
+	log_info("send data: %s\n",msg.c_str());
+	return NULL;
+}
+
 static std::vector<int> send_handle_bitmap(struct context *ctx)
 {
 	std::vector<int> available;
@@ -371,7 +394,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 	{
 	case IBV_WC_RECV_RDMA_WITH_IMM:
 	{
-		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+		log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
 		//log_info("imm_data is %d\n", wc->imm_data);
 		_post_receive(id, wc->imm_data);
 		send_tensor(id, wc->imm_data);
@@ -406,7 +429,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 	}
 	case IBV_WC_RDMA_WRITE:
 	{
-		//log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
+		log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
 		break;
 	}
 	case IBV_WC_RDMA_READ:
