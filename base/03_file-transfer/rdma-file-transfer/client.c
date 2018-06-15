@@ -169,7 +169,7 @@ static void on_completion(struct ibv_wc *wc)
 				gettimeofday(&now_, NULL);
 				//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
 				float time_cost = (now_.tv_usec - start_.tv_usec) / 1000000.0 + now_.tv_sec - start_.tv_sec;
-				printf("time cost: %f s, count = %d\n", time_cost, count);
+				printf("time cost: %f s, count = %ll\n", time_cost, count);
 				log_info("rate: %f bps, %f Kbps, %f Mbps, %f Gbps\n",
 				         8.0 * BUFFER_SIZE * count / time_cost,
 				         8.0 * BUFFER_SIZE * count / netbyte / time_cost,
@@ -189,7 +189,6 @@ static void on_completion(struct ibv_wc *wc)
 	}
 
 	post_receive(id);
-}
 }
 
 int main(int argc, char **argv)
