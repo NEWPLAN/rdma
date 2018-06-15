@@ -357,7 +357,8 @@ static std::vector<int> send_handle_bitmap(struct context *ctx)
 
 static void update_bitmap(struct context *ctx, int index)
 {
-	ctx->bitmap[0][index / 8] = clip_bit(ctx->bitmap[0][index / 8], index % 8);
+	ctx->bitmap[0][index]=(ctx->bitmap[0][index]+1)%2;
+	//ctx->bitmap[0][index / 8] = clip_bit(ctx->bitmap[0][index / 8], index % 8);
 	return;
 }
 
@@ -397,8 +398,8 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 				printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
 			}
 			/**send one tensor...**/
-			send_tensor(id, 0);
-			//post_send(id, IBV_WR_RDMA_READ); //read from peer data
+			//send_tensor(id, 0);
+			post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
 			mem_used++;
 		}
 		break;
@@ -411,7 +412,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 	case IBV_WC_RDMA_READ:
 	{
 		//log_info("IBV_WC_RDMA_READ\n");
-		log_info("IBV_WC_RDMA_READ, sleep for 1000 seconds\n");
+		log_info("IBV_WC_RDMA_READ peer message\n");
 		log_info("read message: %4s\n", ctx->bitmap[1]);
 		std::this_thread::sleep_for(std::chrono::seconds(1000));
 		std::vector<int> available = send_handle_bitmap(ctx);
@@ -420,11 +421,14 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 			std::this_thread::sleep_for(std::chrono::microseconds(5));
 			log_info("POST read again\n");
 		}
+
 		for (auto &index : available)
 		{
-			log_info("SEND again\n");
-			send_tensor(id, index);
+			//log_info("SEND again\n");
+			//send_tensor(id, index);
+			std::cout<<" "<<index;
 		}
+		std::this_thread::sleep_for(std::chrono::seconds(1000));
 		break;
 	}
 	case IBV_WC_SEND:
@@ -614,8 +618,10 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 		printf("bitmap %d :%p\n", index, new_ctx->bitmap_mr[index]->addr);
 	}
 	log_info("register bitmap (index:0 for remote read) and (index:1 for receive the peer data)\n");
-	memcpy(new_ctx->bitmap[0],"abc\0",MAX_CONCURRENCY);
-	memcpy(new_ctx->bitmap[1],"000\0",MAX_CONCURRENCY);
+	//memcpy(new_ctx->bitmap[0],"abc\0",MAX_CONCURRENCY);
+	//memcpy(new_ctx->bitmap[1],"000\0",MAX_CONCURRENCY);
+	memset(new_ctx->bitmap[0],0,MAX_CONCURRENCY);
+	memset(new_ctx->bitmap[1],0,MAX_CONCURRENCY);
 #endif
 	struct ibv_recv_wr wr, *bad_wr = NULL;
 	struct ibv_sge sge;
