@@ -323,7 +323,7 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 	return NULL;
 }
 
-static void *write_tensor(struct rdma_cm_id *id, uint32_t index)
+static void * write_tensor(struct rdma_cm_id *id, uint32_t index)
 {
 	struct context *ctx = (struct context *)id->context;
 
@@ -342,7 +342,7 @@ static void *write_tensor(struct rdma_cm_id *id, uint32_t index)
 	_buff += sizeof(uint32_t);
 	std::memcpy(_buff, msg.c_str(), msg_len);
 	_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE);
-	log_info("send data: %s\n",msg.c_str());
+	log_info("write data: %s\n",msg.c_str());
 	return NULL;
 }
 
@@ -436,38 +436,38 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	}
 	case IBV_WC_RDMA_READ:
 	{
-		//log_info("IBV_WC_RDMA_READ\n");
 		log_info("IBV_WC_RDMA_READ peer message\n");
 		printf("\nPeer bitmap\n");
 		for(int index=0;index<MAX_CONCURRENCY;index++)
 		{
 			printf("%x ",ctx->bitmap[1][index]);
 		}
-		//log_info("Local bitmap:\n");
 		printf("\nLocal bitmap\n");
 		for(int index=0;index<MAX_CONCURRENCY;index++)
 		{
 			printf("%x ",ctx->bitmap[0][index]);
 		}
-		printf("\navailable data\n");
-		//std::this_thread::sleep_for(std::chrono::seconds(1000));
+
 		std::vector<int> available = send_handle_bitmap(ctx);
 		if (available.size() == 0)
 		{
 			log_info("current pipline is busing sleep for next query\n");
-			//std::this_thread::sleep_for(std::chrono::microseconds(5));
 			std::this_thread::sleep_for(std::chrono::seconds(10));
 		}
-
-		for (auto &index : available)
+		else
 		{
-			//log_info("SEND again\n");
-			send_tensor(id, index);
-			std::cout<<" "<<index;
+			printf("\navailable data\n");
+			for (auto &index : available)
+			{
+				write_tensor(id, index);
+				//send_tensor(id, index);
+				std::cout<<" "<<index;
+			}
 		}
+
 		std::cout<<"\nsending thread will be blocked for 5 seconds"<<std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(10));
-		post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
+		post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 		break;
 	}
 	case IBV_WC_SEND:
