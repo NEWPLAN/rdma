@@ -407,7 +407,7 @@ static void * write_tensor(struct rdma_cm_id *id, uint32_t index)
 	if ((++count) % 100000 == 0)
 	{
 		clock_t tend = clock();
-		float time_cost = (tend - tstart + delta);
+		float time_cost = (tend - tstart + delta)/CLOCKS_PER_SEC;
 		log_info("rate: %f Bps, %f Mps, %f Gps\n",
 		         BUFFER_SIZE * count /time_cost,
 		         BUFFER_SIZE * count / 1024.0 /time_cost,
