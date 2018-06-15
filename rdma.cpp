@@ -498,9 +498,9 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				if ((++count) % 100000 == 0)
 				{
 					//clock_t tend = clock();
-					gettimeofday(&end_, NULL);
+					gettimeofday(&now_, NULL);
 					//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
-					float time_cost=(end_.tv_usec-start_.tv_usec)/1000000.0;
+					float time_cost=(now_.tv_usec-start_.tv_usec)/1000000.0;
 					printf("time cost: %f s, count = %d\n",time_cost,count);
 					log_info("rate: %f Bps, %f Kps, %f Mps, %f Gps\n",
 					         BUFFER_SIZE * count / time_cost,
