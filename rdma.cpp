@@ -446,7 +446,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	{
 		case IBV_WC_RECV_RDMA_WITH_IMM:
 			{
-				//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+				log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
 				//log_info("imm_data is %d\n", wc->imm_data);
 				_post_receive(id, wc->imm_data);
 				//send_tensor(id, wc->imm_data);
@@ -498,6 +498,8 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 					        );
 
 				}
+				if(count>5000000 || count % 10000==0)
+					printf("%ll",count);
 				break;
 			}
 		case IBV_WC_RDMA_READ:
@@ -533,8 +535,10 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 					}
 					printf("\n");
 					*/
+				static long long ccc=0;
 					for (auto &index : available)
 					{
+						if(++ccc%5000000 ==0 )break;
 						write_tensor(id, index);
 					}
 
