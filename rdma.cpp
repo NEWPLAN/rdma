@@ -397,8 +397,8 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 				printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
 			}
 			/**send one tensor...**/
-			//send_tensor(id, 0);
-			post_send(id, IBV_WR_RDMA_READ); //read from peer data
+			send_tensor(id, 0);
+			//post_send(id, IBV_WR_RDMA_READ); //read from peer data
 			mem_used++;
 		}
 		break;
@@ -515,7 +515,7 @@ static void *send_poll_cq(void *_id)
 		{
 			//printf("mem_used : %d\n", mem_used);
 			//struct rdma_cm_id *id = (struct rdma_cm_id *)((wc[index])->wr_id);
-			struct context *ctx = (struct context *)id->context;
+			//struct context *ctx = (struct context *)id->context;
 			for (mem_used; mem_used < MAX_CONCURRENCY; mem_used++)
 			{
 				send_tensor(id, mem_used);
