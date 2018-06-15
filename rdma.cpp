@@ -401,7 +401,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 		break;
 	}
 	case IBV_WC_RECV:
-	{
+	{//at start stage, read peer virtual memory info.
 		if (MSG_MR == ctx->k_exch[1]->id)
 		{
 			log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
@@ -429,7 +429,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 	}
 	case IBV_WC_RDMA_WRITE:
 	{
-		log_info("IBV_WC_RDMA_WRITE SUCCESS\n");
+		log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %ud\n",wc->imm_data);
 		break;
 	}
 	case IBV_WC_RDMA_READ:
