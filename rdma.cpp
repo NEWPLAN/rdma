@@ -431,17 +431,22 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	case IBV_WC_RDMA_WRITE:
 	{
 		log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n",wc->wr_id);
-		send_tensor(id, (uint32_t)(wc->wr_id));
+		update_bitmap(ctx, wc->wr_id);
 		break;
 	}
 	case IBV_WC_RDMA_READ:
 	{
 		//log_info("IBV_WC_RDMA_READ\n");
 		log_info("IBV_WC_RDMA_READ peer message\n");
-		log_info("read message:");
+		log_info("Peer bitmap:\n");
 		for(int index=0;index<MAX_CONCURRENCY;index++)
 		{
 			printf("%x ",ctx->bitmap[1][index]);
+		}
+		log_info("Local bitmap:\n");
+		for(int index=0;index<MAX_CONCURRENCY;index++)
+		{
+			printf("%x ",ctx->bitmap[0][index]);
 		}
 		printf("\navailable data\n");
 		//std::this_thread::sleep_for(std::chrono::seconds(1000));
@@ -449,7 +454,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		if (available.size() == 0)
 		{
 			log_info("current pipline is busing sleep for next query\n");
-			std::this_thread::sleep_for(std::chrono::microseconds(5));
+			//std::this_thread::sleep_for(std::chrono::microseconds(5));
 			std::this_thread::sleep_for(std::chrono::seconds(10));
 		}
 
@@ -459,8 +464,9 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			send_tensor(id, index);
 			std::cout<<" "<<index;
 		}
-		std::cout<<"\nthis thread will be blocked"<<std::endl;
+		std::cout<<"\nsending thread will be blocked for 5 seconds"<<std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(10));
+		post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
 		break;
 	}
 	case IBV_WC_SEND:
