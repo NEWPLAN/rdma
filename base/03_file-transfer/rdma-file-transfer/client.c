@@ -152,7 +152,7 @@ static void on_completion(struct ibv_wc *wc)
 		}
 		else if (ctx->msg->id == MSG_READY)
 		{
-			//printf("received READY, sending chunk\n");
+			printf("received READY, sending chunk\n");
 
 			send_next_chunk(id);
 			static long long count = 0;
