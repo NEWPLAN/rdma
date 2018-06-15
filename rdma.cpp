@@ -385,9 +385,9 @@ static void update_bitmap(struct context *ctx, int index)
 	return;
 }
 
-static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
+static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, int &mem_used)
 {
-	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
+	//struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
 	struct context *ctx = (struct context *)id->context;
 
 	switch (wc->opcode)
@@ -536,7 +536,7 @@ static void *send_poll_cq(void *_id)
 		{
 			if (wc[index].status == IBV_WC_SUCCESS)
 			{
-				concurrency_send_by_RDMA(&wc[index], mem_used);
+				concurrency_send_by_RDMA(id, &wc[index], mem_used);
 			}
 			else
 			{
