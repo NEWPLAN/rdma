@@ -232,126 +232,126 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 
 	switch (wc->opcode)
 	{
-		case IBV_WC_RECV_RDMA_WITH_IMM:
+	case IBV_WC_RECV_RDMA_WITH_IMM:
+	{
+		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+		//log_info("imm_data is %d\n", wc->imm_data);
+		//uint32_t size = ntohl(wc->imm_data);
+		uint32_t index = wc->imm_data;
+		uint32_t size = *((uint32_t *)(ctx->buffer[index]));
+		char *recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
+
+		recv_len = size;
+		_data = (void *)std::malloc(sizeof(char) * size);
+
+		if (_data == nullptr)
+		{
+			printf("fatal error in recv data malloc!!!!\n");
+			exit(-1);
+		}
+		std::memcpy(_data, recv_data_ptr, size);
+
+		_post_receive(id, wc->imm_data);
+		_ack_remote(id, wc->imm_data);
+		log_info("recv data: %s\n", _data);
+		break;
+	}
+	case IBV_WC_RECV:
+	{
+		if (MSG_MR == ctx->k_exch[1]->id)
+		{
+			log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
+			log_info("imm_data is %d\n", wc->imm_data);
+			for (int index = 0; index < MAX_CONCURRENCY; index++)
 			{
-				//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
-				//log_info("imm_data is %d\n", wc->imm_data);
-				//uint32_t size = ntohl(wc->imm_data);
-				uint32_t index = wc->imm_data;
+				ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
+				ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
+				struct sockaddr_in *client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
+				printf("client[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+				printf("server ack %d: %p  ", index, ctx->peer_addr[index]);
+				printf("my buffer addr: %d %p\n", index, ctx->buffer_mr[index]->addr);
+			}
+			ctx->peer_bitmap_addr = ctx->k_exch[1]->bitmap.addr;
+			ctx->peer_bitmap_rkey = ctx->k_exch[1]->bitmap.rkey;
+			{
+				printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
+			}
+			post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
+		}
+		break;
+	}
+	case IBV_WC_RDMA_WRITE:
+	{
+		log_info("IBV_WC_RDMA_WRITE\n");
+		break;
+	}
+	case IBV_WC_RDMA_READ:
+	{
+		/*
+		log_info("IBV_WC_RDMA_READ peer message\n");
+		printf("\nPeer bitmap\n");
+		for (int index = 0; index < MAX_CONCURRENCY; index++)
+		{
+			printf("%x ", ctx->bitmap[1][index]);
+		}
+		printf("\nLocal bitmap\n");
+		for (int index = 0; index < MAX_CONCURRENCY; index++)
+		{
+			printf("%x ", ctx->bitmap[0][index]);
+		}
+		printf("\n");
+		*/
+		std::vector<int> available = recv_handle_bitmap(ctx);
+		if (available.size() == 0)
+		{
+			//log_info("current pipline is busing sleep for next query, will sleep 1 seconds\n");
+			std::this_thread::sleep_for(std::chrono::milliseconds(1 * 3));
+		}
+		else
+		{
+			/*
+			printf("\navailable data\n");
+			for (auto &index : available)
+			{
+				//write_tensor(id, index);
+				//send_tensor(id, index);
+				//update_bitmap(ctx,wc->wr_id);
+				std::cout << " " << index;
+			}
+			printf("\n");
+			*/
+			for (auto &index : available)
+			{
 				uint32_t size = *((uint32_t *)(ctx->buffer[index]));
 				char *recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
-
-				recv_len = size;
-				_data = (void *)std::malloc(sizeof(char) * size);
+				void* _data = (void *)std::malloc(sizeof(char) * size + 1);
 
 				if (_data == nullptr)
 				{
 					printf("fatal error in recv data malloc!!!!\n");
 					exit(-1);
 				}
+
+				memset(_data, 0, size + 1);
 				std::memcpy(_data, recv_data_ptr, size);
+				update_bitmap(ctx, index);
+				//log_info("Recv data: %s\n", _data);
+				std::free((char*)_data);
 
-				_post_receive(id, wc->imm_data);
-				_ack_remote(id, wc->imm_data);
-				log_info("recv data: %s\n", _data);
-				break;
 			}
-		case IBV_WC_RECV:
-			{
-				if (MSG_MR == ctx->k_exch[1]->id)
-				{
-					log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
-					log_info("imm_data is %d\n", wc->imm_data);
-					for (int index = 0; index < MAX_CONCURRENCY; index++)
-					{
-						ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
-						ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
-						struct sockaddr_in *client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
-						printf("client[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
-						printf("server ack %d: %p  ", index, ctx->peer_addr[index]);
-						printf("my buffer addr: %d %p\n", index, ctx->buffer_mr[index]->addr);
-					}
-					ctx->peer_bitmap_addr = ctx->k_exch[1]->bitmap.addr;
-					ctx->peer_bitmap_rkey = ctx->k_exch[1]->bitmap.rkey;
-					{
-						printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
-					}
-					post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
-				}
-				break;
-			}
-		case IBV_WC_RDMA_WRITE:
-			{
-				log_info("IBV_WC_RDMA_WRITE\n");
-				break;
-			}
-		case IBV_WC_RDMA_READ:
-			{
-				/*
-				log_info("IBV_WC_RDMA_READ peer message\n");
-				printf("\nPeer bitmap\n");
-				for (int index = 0; index < MAX_CONCURRENCY; index++)
-				{
-					printf("%x ", ctx->bitmap[1][index]);
-				}
-				printf("\nLocal bitmap\n");
-				for (int index = 0; index < MAX_CONCURRENCY; index++)
-				{
-					printf("%x ", ctx->bitmap[0][index]);
-				}
-				printf("\n");
-				*/
-				std::vector<int> available = recv_handle_bitmap(ctx);
-				if (available.size() == 0)
-				{
-					//log_info("current pipline is busing sleep for next query, will sleep 1 seconds\n");
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				}
-				else
-				{
-					/*
-					printf("\navailable data\n");
-					for (auto &index : available)
-					{
-						//write_tensor(id, index);
-						//send_tensor(id, index);
-						//update_bitmap(ctx,wc->wr_id);
-						std::cout << " " << index;
-					}
-					printf("\n");
-					*/
-					for (auto &index : available)
-					{
-						uint32_t size = *((uint32_t *)(ctx->buffer[index]));
-						char *recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
-						void* _data = (void *)std::malloc(sizeof(char) * size + 1);
-
-						if (_data == nullptr)
-						{
-							printf("fatal error in recv data malloc!!!!\n");
-							exit(-1);
-						}
-
-						memset(_data, 0, size + 1);
-						std::memcpy(_data, recv_data_ptr, size);
-						update_bitmap(ctx, index);
-						//log_info("Recv data: %s\n", _data);
-						std::free((char*)_data);
-
-					}
-				}
-				//std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
-				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
-				break;
-			}
-		case IBV_WC_SEND:
-			{
-				//log_info("IBV_WC_SEND\n");
-				break;
-			}
-		default:
-			break;
+		}
+		//std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
+		//std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
+		break;
+	}
+	case IBV_WC_SEND:
+	{
+		//log_info("IBV_WC_SEND\n");
+		break;
+	}
+	default:
+		break;
 	}
 	return _data;
 }
@@ -436,8 +436,8 @@ static std::vector<int> send_handle_bitmap(struct context *ctx)
 	// return available;
 }
 
-static clock_t tstart=0;
-bool first=true;
+static clock_t tstart = 0;
+bool first = true;
 struct timeval start_, now_;
 
 static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, int &mem_used)
@@ -447,128 +447,128 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 
 	switch (wc->opcode)
 	{
-		case IBV_WC_RECV_RDMA_WITH_IMM:
+	case IBV_WC_RECV_RDMA_WITH_IMM:
+	{
+		log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+		//log_info("imm_data is %d\n", wc->imm_data);
+		_post_receive(id, wc->imm_data);
+		//send_tensor(id, wc->imm_data);
+		break;
+	}
+	case IBV_WC_RECV:
+	{
+		//at start stage, read peer virtual memory info.
+		if (MSG_MR == ctx->k_exch[1]->id)
+		{
+			log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
+			for (int index = 0; index < MAX_CONCURRENCY; index++)
 			{
-				log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
-				//log_info("imm_data is %d\n", wc->imm_data);
-				_post_receive(id, wc->imm_data);
-				//send_tensor(id, wc->imm_data);
-				break;
+				//reserved the (buffer)key info from server.
+				ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
+				ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
+				struct sockaddr_in *client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
+				printf("server[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
+				printf("client buffer %d: %p\n", index, ctx->peer_addr[index]);
+				printf("my ach addr: %d %p\n", index, ctx->ack_mr[index]->addr);
 			}
-		case IBV_WC_RECV:
+			ctx->peer_bitmap_addr = ctx->k_exch[1]->bitmap.addr;
+			ctx->peer_bitmap_rkey = ctx->k_exch[1]->bitmap.rkey;
 			{
-				//at start stage, read peer virtual memory info.
-				if (MSG_MR == ctx->k_exch[1]->id)
-				{
-					log_info("recv MD5 is %llu\n", ctx->k_exch[1]->md5);
-					for (int index = 0; index < MAX_CONCURRENCY; index++)
-					{
-						//reserved the (buffer)key info from server.
-						ctx->peer_addr[index] = ctx->k_exch[1]->key_info[index].addr;
-						ctx->peer_rkey[index] = ctx->k_exch[1]->key_info[index].rkey;
-						struct sockaddr_in *client_addr = (struct sockaddr_in *)rdma_get_peer_addr(id);
-						printf("server[%s,%d] to ", inet_ntoa(client_addr->sin_addr), client_addr->sin_port);
-						printf("client buffer %d: %p\n", index, ctx->peer_addr[index]);
-						printf("my ach addr: %d %p\n", index, ctx->ack_mr[index]->addr);
-					}
-					ctx->peer_bitmap_addr = ctx->k_exch[1]->bitmap.addr;
-					ctx->peer_bitmap_rkey = ctx->k_exch[1]->bitmap.rkey;
-					{
-						printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
-					}
-					/**send one tensor...**/
-					//send_tensor(id, 0);
-					post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
-					mem_used++;
-				}
-				break;
+				printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
 			}
-		case IBV_WC_RDMA_WRITE:
-			{
-				//log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n", wc->wr_id);
-				update_bitmap(ctx, wc->wr_id);
-				static long long count = 0 ;
-				if(first)
-				{
-					gettimeofday(&start_, NULL);
-					//tstart = clock();
-					first = false;
-				}
-				float delta = 0.00000000000001;
-				if ((++count) % 100000 == 0)
-				{
+			/**send one tensor...**/
+			//send_tensor(id, 0);
+			post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
+			mem_used++;
+		}
+		break;
+	}
+	case IBV_WC_RDMA_WRITE:
+	{
+		//log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n", wc->wr_id);
+		update_bitmap(ctx, wc->wr_id);
+		static long long count = 0 ;
+		if (first)
+		{
+			gettimeofday(&start_, NULL);
+			//tstart = clock();
+			first = false;
+		}
+		float delta = 0.00000000000001;
+		if ((++count) % 100000 == 0)
+		{
 #define netbyte 1000
-					//clock_t tend = clock();
-					gettimeofday(&now_, NULL);
-					//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
-					float time_cost=(now_.tv_usec-start_.tv_usec)/1000000.0+now_.tv_sec-start_.tv_sec;
-					printf("time cost: %f s, count = %d\n",time_cost,count);
-					log_info("rate: %f bps, %f Kbps, %f Mbps, %f Gbps\n",
-					        8.0* BUFFER_SIZE * count / time_cost,
-					        8.0* BUFFER_SIZE * count / netbyte / time_cost,
-					        8.0* BUFFER_SIZE * count / netbyte / netbyte / time_cost,
-							8.0* BUFFER_SIZE * count / netbyte / netbyte /netbyte/ time_cost
-					        );
+			//clock_t tend = clock();
+			gettimeofday(&now_, NULL);
+			//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
+			float time_cost = (now_.tv_usec - start_.tv_usec) / 1000000.0 + now_.tv_sec - start_.tv_sec;
+			printf("time cost: %f s, count = %d\n", time_cost, count);
+			log_info("rate: %f bps, %f Kbps, %f Mbps, %f Gbps\n",
+			         8.0 * BUFFER_SIZE * count / time_cost,
+			         8.0 * BUFFER_SIZE * count / netbyte / time_cost,
+			         8.0 * BUFFER_SIZE * count / netbyte / netbyte / time_cost,
+			         8.0 * BUFFER_SIZE * count / netbyte / netbyte / netbyte / time_cost
+			        );
 
-				}
-				if(count>5000000 || count % 10000==0)
-					printf("%ll",count);
-				break;
-			}
-		case IBV_WC_RDMA_READ:
+		}
+		if (count > 5000000 || count % 10000 == 0)
+			printf("%ll", count);
+		break;
+	}
+	case IBV_WC_RDMA_READ:
+	{
+		/*
+		log_info("IBV_WC_RDMA_READ peer message\n");
+		printf("\nPeer bitmap\n");
+		for (int index = 0; index < MAX_CONCURRENCY; index++)
+		{
+			printf("%x ", ctx->bitmap[1][index]);
+		}
+		printf("\nLocal bitmap\n");
+		for (int index = 0; index < MAX_CONCURRENCY; index++)
+		{
+			printf("%x ", ctx->bitmap[0][index]);
+		}
+		printf("\n");
+		*/
+		std::vector<int> available = send_handle_bitmap(ctx);
+		if (available.size() == 0)
+		{
+			log_info("current pipline is busing sleep for next query, will sleep for 1 seconds\n");
+			std::this_thread::sleep_for(std::chrono::milliseconds(1 * 3));
+		}
+		else
+		{
+			/*
+			printf("\navailable data\n");
+
+			for (auto &index : available)
 			{
-				/*
-				log_info("IBV_WC_RDMA_READ peer message\n");
-				printf("\nPeer bitmap\n");
-				for (int index = 0; index < MAX_CONCURRENCY; index++)
-				{
-					printf("%x ", ctx->bitmap[1][index]);
-				}
-				printf("\nLocal bitmap\n");
-				for (int index = 0; index < MAX_CONCURRENCY; index++)
-				{
-					printf("%x ", ctx->bitmap[0][index]);
-				}
-				printf("\n");
-				*/
-				std::vector<int> available = send_handle_bitmap(ctx);
-				if (available.size() == 0)
-				{
-					log_info("current pipline is busing sleep for next query, will sleep for 1 seconds\n");
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				}
-				else
-				{
-					/*
-					printf("\navailable data\n");
-
-					for (auto &index : available)
-					{
-						std::cout << " " << index;
-					}
-					printf("\n");
-					*/
-				//static long long ccc=0;
-					for (auto &index : available)
-					{
-						//if(++ccc%5000000 ==0 )break;
-						write_tensor(id, index);
-					}
-
-				}
-
-				//std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
-				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
-				break;
+				std::cout << " " << index;
 			}
-		case IBV_WC_SEND:
+			printf("\n");
+			*/
+			//static long long ccc=0;
+			for (auto &index : available)
 			{
-				//log_info("IBV_WC_SEND\n");
-				break;
+				//if(++ccc%5000000 ==0 )break;
+				write_tensor(id, index);
 			}
-		default:
-			break;
+
+		}
+
+		//std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
+		//std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
+		break;
+	}
+	case IBV_WC_SEND:
+	{
+		//log_info("IBV_WC_SEND\n");
+		break;
+	}
+	default:
+		break;
 	}
 	return NULL;
 }
@@ -1053,17 +1053,17 @@ int main(int argc, char const *argv[])
 	Adapter rdma_adapter;
 	switch (argc)
 	{
-		case 3:
-			rdma_adapter.set_server_ip(argv[2]);
-			rdma_server_init(rdma_adapter);
-		case 5:
-			rdma_adapter.set_server_ip(argv[2]);
-			rdma_adapter.set_client_ip(argv[4]);
-			rdma_client_init(rdma_adapter);
-		default:
-			help();
-			exit(-1);
-			break;
+	case 3:
+		rdma_adapter.set_server_ip(argv[2]);
+		rdma_server_init(rdma_adapter);
+	case 5:
+		rdma_adapter.set_server_ip(argv[2]);
+		rdma_adapter.set_client_ip(argv[4]);
+		rdma_client_init(rdma_adapter);
+	default:
+		help();
+		exit(-1);
+		break;
 	}
 	return 0;
 }
