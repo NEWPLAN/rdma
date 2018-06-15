@@ -5,7 +5,7 @@
 #include <rdma/rdma_cma.h>
 
 //50 M for default size;
-const size_t BUFFER_SIZE = 5 * 1000 * 1024 + 1;
+const size_t BUFFER_SIZE = 5 * 1024 * 1024 + 1;
 #define TIMEOUT_IN_MS 500
 #define TEST_NZ(x)                                               \
 	do                                                           \
@@ -402,17 +402,6 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 		log_info("IBV_WC_RDMA_READ, sleep for 1000 seconds\n");
 		log_info("read message: %4s\n", ctx->bitmap[1]);
 		std::this_thread::sleep_for(std::chrono::seconds(1000));
-		std::vector<int> available; // = send_handle_bitmap(ctx);
-		while (available.size() == 0)
-		{
-			std::this_thread::sleep_for(std::chrono::microseconds(5));
-			log_info("POST read again\n");
-		}
-		for (auto &index : available)
-		{
-			log_info("SEND again\n");
-			send_tensor(id, index);
-		}
 		break;
 	}
 	case IBV_WC_SEND:
