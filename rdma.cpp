@@ -438,6 +438,7 @@ static std::vector<int> send_handle_bitmap(struct context *ctx)
 
 static clock_t tstart=0;
 bool first=true;
+struct timeval start_, now_;
 
 static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, int &mem_used)
 {
@@ -489,15 +490,18 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				static long long count = 0 ;
 				if(first)
 				{
-					tstart = clock();
+					gettimeofday(&start_, NULL);
+					//tstart = clock();
 					first = false;
 				}
 				float delta = 0.00000000000001;
 				if ((++count) % 100000 == 0)
 				{
-					clock_t tend = clock();
-					float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
-					printf("time cost: %f, count = %d\n",time_cost,count);
+					//clock_t tend = clock();
+					gettimeofday(&end_, NULL);
+					//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
+					float time_cost=(end_.tv_usec-start_.tv_usec)/1000000.0;
+					printf("time cost: %f s, count = %d\n",time_cost,count);
 					log_info("rate: %f Bps, %f Kps, %f Mps, %f Gps\n",
 					         BUFFER_SIZE * count / time_cost,
 					         BUFFER_SIZE * count / 1024.0 / time_cost,
