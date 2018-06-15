@@ -225,6 +225,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
 		//log_info("imm_data is %d\n", wc->imm_data);
 		//uint32_t size = ntohl(wc->imm_data);
+		/*
 		uint32_t index = wc->imm_data;
 		uint32_t size = *((uint32_t *)(ctx->buffer[index]));
 		char *recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
@@ -238,10 +239,11 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 			exit(-1);
 		}
 		std::memcpy(_data, recv_data_ptr, size);
+		*/
 
 		_post_receive(id, wc->imm_data);
 		_ack_remote(id, wc->imm_data);
-		log_info("recv data: %s\n", _data);
+		//log_info("recv data: %s\n", _data);
 		break;
 	}
 	case IBV_WC_RECV:
@@ -315,13 +317,15 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 	char *_buff = ctx->buffer[index];
 	std::memcpy(_buff, (char *)(&msg_len), sizeof(uint32_t));
 	_buff += sizeof(uint32_t);
-	std::memcpy(_buff, msg.c_str(), msg_len);
-	_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE_WITH_IMM);
-	log_info("send data: %s\n",msg.c_str());
+	//std::memcpy(_buff, msg.c_str(), msg_len);
+	//_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE_WITH_IMM);
+	_write_remote(id, BUFFER_SIZE-1, index, IBV_WR_RDMA_WRITE_WITH_IMM);
+	//log_info("send data: %s\n",msg.c_str());
 	return NULL;
 }
 
-
+bool first=true;
+struct timeval start_, now_;
 static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
@@ -335,6 +339,30 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 		//log_info("imm_data is %d\n", wc->imm_data);
 		_post_receive(id, wc->imm_data);
 		send_tensor(id, wc->imm_data);
+
+		static long long count = 0 ;
+				if(first)
+				{
+					gettimeofday(&start_, NULL);
+					//tstart = clock();
+					first = false;
+				}
+				if ((++count) % 100000 == 0)
+				{
+#define netbyte 1000
+					//clock_t tend = clock();
+					gettimeofday(&now_, NULL);
+					//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
+					float time_cost=(now_.tv_usec-start_.tv_usec)/1000000.0+now_.tv_sec-start_.tv_sec;
+					printf("time cost: %f s, count = %d\n",time_cost,count);
+					log_info("rate: %f bps, %f Kbps, %f Mbps, %f Gbps\n",
+					        8.0* BUFFER_SIZE * count / time_cost,
+					        8.0* BUFFER_SIZE * count / netbyte / time_cost,
+					        8.0* BUFFER_SIZE * count / netbyte / netbyte / time_cost,
+							8.0* BUFFER_SIZE * count / netbyte / netbyte /netbyte/ time_cost
+					        );
+
+				}
 		break;
 	}
 	case IBV_WC_RECV:
