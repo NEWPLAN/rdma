@@ -404,14 +404,14 @@ static void * write_tensor(struct rdma_cm_id *id, uint32_t index)
 	static clock_t tstart = clock();
 	float delta = 0.00000000000001;
 	_write_remote(id, BUFFER_SIZE - 1 , index, IBV_WR_RDMA_WRITE);
-	if ((++count) % 10000 == 0)
+	if ((++count) % 100000 == 0)
 	{
 		clock_t tend = clock();
 		float time_cost = (tend - tstart + delta);
 		log_info("rate: %f Bps, %f Mps, %f Gps\n",
-		         BUFFER_SIZE * count / 1024.0 / time_cost,
-		         BUFFER_SIZE * count / 1024.0 / 1024 / time_cost,
-		         BUFFER_SIZE * count / 1024.0 / 1024 / 1024 / time_cost
+		         BUFFER_SIZE * count /time_cost,
+		         BUFFER_SIZE * count / 1024.0 /time_cost,
+		         BUFFER_SIZE * count / 1024.0 / 1024 /time_cost
 		        );
 
 	}
