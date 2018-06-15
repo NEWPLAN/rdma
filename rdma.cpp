@@ -430,7 +430,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	}
 	case IBV_WC_RDMA_WRITE:
 	{
-		log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %ud\n",wc->wr_id);
+		log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n",wc->wr_id);
 		break;
 	}
 	case IBV_WC_RDMA_READ:
@@ -445,16 +445,17 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		printf("\navailable data\n");
 		//std::this_thread::sleep_for(std::chrono::seconds(1000));
 		std::vector<int> available = send_handle_bitmap(ctx);
-		while (available.size() == 0)
+		if (available.size() == 0)
 		{
+			log_info("current pipline is busing sleep for next query\n");
 			std::this_thread::sleep_for(std::chrono::microseconds(5));
-			log_info("POST read again\n");
+			std::this_thread::sleep_for(std::chrono::seconds(10));
 		}
 
 		for (auto &index : available)
 		{
 			//log_info("SEND again\n");
-			//send_tensor(id, index);
+			send_tensor(id, index);
 			std::cout<<" "<<index;
 		}
 		std::cout<<"\nthis thread will be blocked"<<std::endl;
@@ -545,9 +546,9 @@ static void *send_poll_cq(void *_id)
 				rc_die("poll_cq: status is not IBV_WC_SUCCESS");
 			}
 		}
-		if (mem_used)
+		if (mem_used && 0)
 		{
-			//printf("mem_used : %d\n", mem_used);
+			printf("mem_used : %d\n", mem_used);
 			//struct rdma_cm_id *id = (struct rdma_cm_id *)((wc[index])->wr_id);
 			//struct context *ctx = (struct context *)id->context;
 			for (mem_used; mem_used < MAX_CONCURRENCY; mem_used++)
