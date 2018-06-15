@@ -447,7 +447,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		{
 			printf("%x ",ctx->bitmap[0][index]);
 		}
-
+		printf("\n");
 		std::vector<int> available = send_handle_bitmap(ctx);
 		if (available.size() == 0)
 		{

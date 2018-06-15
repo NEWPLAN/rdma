@@ -22,8 +22,10 @@ clean:
 	rm -f *.o ${APPS} *.txt
 
 server:
+	clear
 	./rdma --server 12.12.11.19
 client:
+	clear
 	./rdma --server 12.12.11.19 --client 12.12.11.18
 
 syn:
