@@ -397,7 +397,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 		log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
 		//log_info("imm_data is %d\n", wc->imm_data);
 		_post_receive(id, wc->imm_data);
-		send_tensor(id, wc->imm_data);
+		//send_tensor(id, wc->imm_data);
 		break;
 	}
 	case IBV_WC_RECV:
@@ -457,7 +457,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 			std::cout<<" "<<index;
 		}
 		std::cout<<"\nthis thread will be blocked"<<std::endl;
-		std::this_thread::sleep_for(std::chrono::seconds(1000));
+		std::this_thread::sleep_for(std::chrono::seconds(10));
 		break;
 	}
 	case IBV_WC_SEND:
