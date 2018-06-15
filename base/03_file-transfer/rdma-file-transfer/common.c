@@ -1,4 +1,5 @@
 #include "common.h"
+#include<netdb.h>
 
 const int TIMEOUT_IN_MS = 500;
 
