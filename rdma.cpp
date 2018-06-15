@@ -266,27 +266,66 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 			{
 				printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
 			}
+			post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 		}
 		break;
 	}
 	case IBV_WC_RDMA_WRITE:
 	{
-		//log_info("IBV_WC_RDMA_WRITE\n");
+		log_info("IBV_WC_RDMA_WRITE\n");
 		break;
 	}
 	case IBV_WC_RDMA_READ:
 	{
-		log_info("IBV_WC_RDMA_READ\n");
+		log_info("IBV_WC_RDMA_READ peer message\n");
+		printf("\nPeer bitmap\n");
+		for(int index=0;index<MAX_CONCURRENCY;index++)
+		{
+			printf("%x ",ctx->bitmap[1][index]);
+		}
+		printf("\nLocal bitmap\n");
+		for(int index=0;index<MAX_CONCURRENCY;index++)
+		{
+			printf("%x ",ctx->bitmap[0][index]);
+		}
+		printf("\n");
 		std::vector<int> available = recv_handle_bitmap(ctx);
-		while (available.size() == 0)
+		if (available.size() == 0)
 		{
-			std::this_thread::sleep_for(std::chrono::microseconds(5));
-			log_info("POST read again\n");
+			log_info("current pipline is busing sleep for next query\n");
+			std::this_thread::sleep_for(std::chrono::seconds(10));
 		}
-		for (auto &index : available)
+		else
 		{
-			log_info("SEND again\n");
+			printf("\navailable data\n");
+			for (auto &index : available)
+			{
+				//write_tensor(id, index);
+				//send_tensor(id, index);
+				//update_bitmap(ctx,wc->wr_id);
+				std::cout<<" "<<index;
+			}
+			printf("\n");
+			for (auto &index : available)
+			{
+				uint32_t size = *((uint32_t *)(ctx->buffer[index]));
+				char *recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
+				void* _data = (void *)std::malloc(sizeof(char) * size + 1);
+				
+				if (_data == nullptr)
+				{
+					printf("fatal error in recv data malloc!!!!\n");
+					exit(-1);
+				}
+
+				memset(_data,0,size + 1);
+				std::memcpy(_data, recv_data_ptr, size);
+				log_info("Recv data: %s\n", _data);
+			}
 		}
+		std::cout<<"\nsending thread will be blocked for 5 seconds"<<std::endl;
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+		post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 		break;
 	}
 	case IBV_WC_SEND:
