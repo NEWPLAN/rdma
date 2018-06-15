@@ -1,5 +1,7 @@
 #include "common.h"
-#include<netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 const int TIMEOUT_IN_MS = 500;
 
