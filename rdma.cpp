@@ -394,7 +394,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 	{
 	case IBV_WC_RECV_RDMA_WITH_IMM:
 	{
-		log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
+		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
 		//log_info("imm_data is %d\n", wc->imm_data);
 		_post_receive(id, wc->imm_data);
 		//send_tensor(id, wc->imm_data);
