@@ -507,6 +507,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			{
 				std::cout<<" "<<index;
 			}
+			printf("\n");
 			for (auto &index : available)
 			{
 				write_tensor(id, index);
