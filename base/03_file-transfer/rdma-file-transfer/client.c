@@ -155,6 +155,7 @@ static void on_completion(struct ibv_wc *wc)
 			//printf("received READY, sending chunk\n");
 
 			send_next_chunk(id);
+			static long long count = 0;
 			if ((++count) % 100000 == 0)
 			{
 #define netbyte 1000
