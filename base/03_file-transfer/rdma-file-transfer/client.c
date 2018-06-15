@@ -132,7 +132,7 @@ static void on_pre_conn(struct rdma_cm_id *id)
 
 	post_receive(id);
 }
-bool first = true;
+int first = 1;
 struct timeval start_, now_;
 
 static void on_completion(struct ibv_wc *wc)
@@ -156,6 +156,12 @@ static void on_completion(struct ibv_wc *wc)
 
 			send_next_chunk(id);
 			static long long count = 0;
+			if (first)
+			{
+				gettimeofday(&start_, NULL);
+				//tstart = clock();
+				first = 0;
+			}
 			if ((++count) % 100000 == 0)
 			{
 #define netbyte 1000
