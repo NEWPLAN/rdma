@@ -8,7 +8,6 @@ struct context
 	struct ibv_pd *pd;
 	struct ibv_cq *cq;
 	struct ibv_comp_channel *comp_channel;
-
 	pthread_t cq_poller_thread;
 };
 
