@@ -433,6 +433,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 			//send_tensor(id, index);
 			std::cout<<" "<<index;
 		}
+		std::cout<<"this thread will be blocked"<<std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(1000));
 		break;
 	}
