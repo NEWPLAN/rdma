@@ -374,7 +374,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 		log_info("IBV_WC_RDMA_READ, sleep for 1000 seconds\n");
 		log_info("read message: %4s\n", ctx->bitmap[1]);
 		std::this_thread::sleep_for(std::chrono::seconds(1000));
-		std::vector<int> available = send_handle_bitmap(ctx);
+		std::vector<int> available；// = send_handle_bitmap(ctx);
 		while (available.size() == 0)
 		{
 			std::this_thread::sleep_for(std::chrono::microseconds(5));
