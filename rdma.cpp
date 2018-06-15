@@ -213,7 +213,7 @@ static std::vector<int> recv_handle_bitmap(struct context *ctx)
 	// return available;
 }
 
-static void *corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
+static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
 	struct context *ctx = (struct context *)id->context;
@@ -242,7 +242,7 @@ static void *corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 
 		_post_receive(id, wc->imm_data);
 		_ack_remote(id, wc->imm_data);
-		//log_info("recv data: %s\n", _data);
+		log_info("recv data: %s\n", _data);
 		break;
 	}
 	case IBV_WC_RECV:
@@ -263,7 +263,7 @@ static void *corcurency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 			ctx->peer_bitmap_addr = ctx->k_exch[1]->bitmap.addr;
 			ctx->peer_bitmap_rkey = ctx->k_exch[1]->bitmap.rkey;
 			{
-				printf("peer bitmap addr : %p\n peer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
+				printf("peer bitmap addr : %p\npeer bitmap rkey: %u\n", ctx->peer_bitmap_addr, ctx->peer_bitmap_rkey);
 			}
 		}
 		break;
@@ -463,7 +463,7 @@ static void *recv_poll_cq(void *_id)
 				//printf("in receive poll cq\n");
 				void *recv_data = nullptr;
 				uint32_t recv_len;
-				recv_data = corcurency_recv_by_RDMA(&wc[index], recv_len);
+				recv_data = concurrency_recv_by_RDMA(&wc[index], recv_len);
 			}
 			else
 			{
