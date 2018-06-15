@@ -418,6 +418,7 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 		{
 			printf("%x ",ctx->bitmap[1][index]);
 		}
+		printf("\navailable data\n");
 		//std::this_thread::sleep_for(std::chrono::seconds(1000));
 		std::vector<int> available = send_handle_bitmap(ctx);
 		while (available.size() == 0)
