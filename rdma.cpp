@@ -400,21 +400,8 @@ static void * write_tensor(struct rdma_cm_id *id, uint32_t index)
 	std::memcpy(_buff, msg.c_str(), msg_len);
 	//_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE);
 	//log_info("write data: %s\n",msg.c_str());
-	static long long count = 0 ;
-	static clock_t tstart = clock();
-	float delta = 0.00000000000001;
 	_write_remote(id, BUFFER_SIZE - 1 , index, IBV_WR_RDMA_WRITE);
-	if ((++count) % 100000 == 0)
-	{
-		clock_t tend = clock();
-		float time_cost = (tend - tstart + delta)/CLOCKS_PER_SEC;
-		log_info("rate: %f Bps, %f Mps, %f Gps\n",
-		         BUFFER_SIZE * count /time_cost,
-		         BUFFER_SIZE * count / 1024.0 /time_cost,
-		         BUFFER_SIZE * count / 1024.0 / 1024 /time_cost
-		        );
 
-	}
 	return NULL;
 }
 
@@ -497,6 +484,20 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			{
 				//log_info("IBV_WC_RDMA_WRITE SUCCESS with id = %u\n", wc->wr_id);
 				update_bitmap(ctx, wc->wr_id);
+				static long long count = 0 ;
+				static clock_t tstart = clock();
+				float delta = 0.00000000000001;
+				if ((++count) % 10000 == 0)
+				{
+					clock_t tend = clock();
+					float time_cost = (tend - tstart + delta) / CLOCKS_PER_SEC;
+					log_info("rate: %f Bps, %f Mps, %f Gps\n",
+					         BUFFER_SIZE * count / time_cost,
+					         BUFFER_SIZE * count / 1024.0 / time_cost,
+					         BUFFER_SIZE * count / 1024.0 / 1024 / time_cost
+					        );
+
+				}
 				break;
 			}
 		case IBV_WC_RDMA_READ:
