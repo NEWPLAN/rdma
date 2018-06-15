@@ -287,6 +287,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 			}
 		case IBV_WC_RDMA_READ:
 			{
+				/*
 				log_info("IBV_WC_RDMA_READ peer message\n");
 				printf("\nPeer bitmap\n");
 				for (int index = 0; index < MAX_CONCURRENCY; index++)
@@ -299,6 +300,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					printf("%x ", ctx->bitmap[0][index]);
 				}
 				printf("\n");
+				*/
 				std::vector<int> available = recv_handle_bitmap(ctx);
 				if (available.size() == 0)
 				{
@@ -307,6 +309,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				}
 				else
 				{
+					/*
 					printf("\navailable data\n");
 					for (auto &index : available)
 					{
@@ -316,6 +319,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 						std::cout << " " << index;
 					}
 					printf("\n");
+					*/
 					for (auto &index : available)
 					{
 						uint32_t size = *((uint32_t *)(ctx->buffer[index]));
@@ -331,13 +335,13 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 						memset(_data, 0, size + 1);
 						std::memcpy(_data, recv_data_ptr, size);
 						update_bitmap(ctx, index);
-						log_info("Recv data: %s\n", _data);
+						//log_info("Recv data: %s\n", _data);
 						std::free((char*)_data);
 
 					}
 				}
-				std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				//std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
+				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 				break;
 			}
@@ -497,6 +501,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			}
 		case IBV_WC_RDMA_READ:
 			{
+				/*
 				log_info("IBV_WC_RDMA_READ peer message\n");
 				printf("\nPeer bitmap\n");
 				for (int index = 0; index < MAX_CONCURRENCY; index++)
@@ -509,6 +514,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 					printf("%x ", ctx->bitmap[0][index]);
 				}
 				printf("\n");
+				*/
 				std::vector<int> available = send_handle_bitmap(ctx);
 				if (available.size() == 0)
 				{
@@ -517,6 +523,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				}
 				else
 				{
+					/*
 					printf("\navailable data\n");
 
 					for (auto &index : available)
@@ -524,6 +531,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 						std::cout << " " << index;
 					}
 					printf("\n");
+					*/
 					for (auto &index : available)
 					{
 						write_tensor(id, index);
@@ -531,8 +539,8 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 
 				}
 
-				std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				//std::cout << "\nsending thread will be blocked for 1 seconds" << std::endl;
+				//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				post_send(id, IBV_WR_RDMA_READ); //query peer bitmap for update
 				break;
 			}
