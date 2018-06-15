@@ -438,12 +438,13 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	{
 		//log_info("IBV_WC_RDMA_READ\n");
 		log_info("IBV_WC_RDMA_READ peer message\n");
-		log_info("Peer bitmap:\n");
+		printf("\nPeer bitmap\n");
 		for(int index=0;index<MAX_CONCURRENCY;index++)
 		{
 			printf("%x ",ctx->bitmap[1][index]);
 		}
-		log_info("Local bitmap:\n");
+		//log_info("Local bitmap:\n");
+		printf("\nLocal bitmap\n");
 		for(int index=0;index<MAX_CONCURRENCY;index++)
 		{
 			printf("%x ",ctx->bitmap[0][index]);
