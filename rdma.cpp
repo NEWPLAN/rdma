@@ -214,6 +214,16 @@ static std::vector<int> recv_handle_bitmap(struct context *ctx)
 	// return available;
 }
 
+#define clip_bit(num, mask) ((num) & (~(1 << (7 - (mask))))) | ((num) ^ (1 << (7 - (mask))))
+
+static void update_bitmap(struct context *ctx, int index)
+{
+	ctx->bitmap[0][index]=(ctx->bitmap[0][index]+1)%2;
+	//ctx->bitmap[0][index / 8] = clip_bit(ctx->bitmap[0][index / 8], index % 8);
+	return;
+}
+
+
 static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
@@ -420,14 +430,6 @@ static std::vector<int> send_handle_bitmap(struct context *ctx)
 	// return available;
 }
 
-#define clip_bit(num, mask) ((num) & (~(1 << (7 - (mask))))) | ((num) ^ (1 << (7 - (mask))))
-
-static void update_bitmap(struct context *ctx, int index)
-{
-	ctx->bitmap[0][index]=(ctx->bitmap[0][index]+1)%2;
-	//ctx->bitmap[0][index / 8] = clip_bit(ctx->bitmap[0][index / 8], index % 8);
-	return;
-}
 
 static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, int &mem_used)
 {
