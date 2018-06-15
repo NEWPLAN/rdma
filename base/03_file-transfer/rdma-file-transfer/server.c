@@ -14,7 +14,7 @@ struct conn_context
 	struct message *msg;
 	struct ibv_mr *msg_mr;
 
-	int fd;
+	//int fd;
 	char file_name[MAX_FILE_NAME];
 };
 
@@ -122,10 +122,10 @@ static void on_completion(struct ibv_wc *wc)
 
 			printf("opening file %s\n", ctx->file_name);
 
-			ctx->fd = open(ctx->file_name, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+			/*ctx->fd = open(ctx->file_name, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
 			if (ctx->fd == -1)
-				rc_die("open() failed");
+				rc_die("open() failed");*/
 
 			post_receive(id);
 
@@ -139,7 +139,7 @@ static void on_disconnect(struct rdma_cm_id *id)
 {
 	struct conn_context *ctx = (struct conn_context *)id->context;
 
-	close(ctx->fd);
+	//close(ctx->fd);
 
 	ibv_dereg_mr(ctx->buffer_mr);
 	ibv_dereg_mr(ctx->msg_mr);

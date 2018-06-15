@@ -18,7 +18,7 @@ struct client_context
 	uint64_t peer_addr;
 	uint32_t peer_rkey;
 
-	int fd;
+	//int fd;
 	const char *file_name;
 };
 
@@ -200,13 +200,13 @@ int main(int argc, char **argv)
 	}
 
 	ctx.file_name = basename(argv[2]);
-	ctx.fd = open(argv[2], O_RDONLY);
+	//ctx.fd = open(argv[2], O_RDONLY);
 
-	if (ctx.fd == -1)
+	/*if (ctx.fd == -1)
 	{
 		fprintf(stderr, "unable to open input file \"%s\"\n", ctx.file_name);
 		return 1;
-	}
+	}*/
 
 	rc_init(
 	    on_pre_conn,
@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 
 	rc_client_loop(argv[1], DEFAULT_PORT, &ctx);
 
-	close(ctx.fd);
+	//close(ctx.fd);
 
 	return 0;
 }
