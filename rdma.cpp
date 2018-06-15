@@ -120,7 +120,8 @@ static void _write_remote(struct rdma_cm_id *id, uint32_t len, uint32_t index, i
 
 	memset(&wr, 0, sizeof(wr));
 
-	wr.wr_id = (uintptr_t)id;
+	//wr.wr_id = (uintptr_t)id;
+	wr.wr_id = index;
 
 	wr.opcode = opcode;
 	wr.send_flags = IBV_SEND_SIGNALED;
