@@ -176,19 +176,17 @@ static void on_completion(struct ibv_wc *wc)
 				         8.0 * BUFFER_SIZE * count / netbyte / netbyte / time_cost,
 				         8.0 * BUFFER_SIZE * count / netbyte / netbyte / netbyte / time_cost
 				        );
-
 			}
-
 		}
-	}
-	else if (ctx->msg->id == MSG_DONE)
-	{
-		printf("received DONE, disconnecting\n");
-		rc_disconnect(id);
-		return;
-	}
+		else if (ctx->msg->id == MSG_DONE)
+		{
+			printf("received DONE, disconnecting\n");
+			rc_disconnect(id);
+			return;
+		}
 
-	post_receive(id);
+		post_receive(id);
+	}
 }
 
 int main(int argc, char **argv)
