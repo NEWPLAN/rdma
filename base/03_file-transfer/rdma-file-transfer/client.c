@@ -160,7 +160,8 @@ static void on_completion(struct ibv_wc *wc)
 					//tstart = clock();
 					first = 0;
 				}
-				long long int model = (1000 * 1024 * 1024 * 10 / BUFFER_SIZE);
+				long long int model = 1000;
+				model = model * 1024 * 1024 * 10 / BUFFER_SIZE);
 				if ((++count) % model == 0)
 				{
 #define netbyte 1000
