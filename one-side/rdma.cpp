@@ -496,7 +496,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			first = false;
 		}
 		float delta = 0.00000000000001;
-		if ((++count) % 100000 == 0)
+		if ((++count) % 1000000 == 0)
 		{
 #define netbyte 1000
 			//clock_t tend = clock();
