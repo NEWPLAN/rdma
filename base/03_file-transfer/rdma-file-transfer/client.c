@@ -5,6 +5,7 @@
 #include "messages.h"
 #include <time.h>
 #include <sys/time.h>
+#include <stdarg.h>
 
 struct client_context
 {
@@ -20,6 +21,31 @@ struct client_context
 	//int fd;
 	const char *file_name;
 };
+
+void log_info(const char *format, ...)
+{
+	char now_time[32];
+	char s[1024];
+	char content[1024];
+	//char *ptr = content;
+	struct tm *tmnow;
+	struct timeval tv;
+	bzero(content, 1024);
+	va_list arg;
+	va_start(arg, format);
+	vsprintf(s, format, arg);
+	va_end(arg);
+
+	gettimeofday(&tv, NULL);
+	tmnow = localtime(&tv.tv_sec);
+
+	sprintf(now_time, "%04d/%02d/%02d %02d:%02d:%02d:%06ld ",
+	        tmnow->tm_year + 1900, tmnow->tm_mon + 1, tmnow->tm_mday, tmnow->tm_hour,
+	        tmnow->tm_min, tmnow->tm_sec, tv.tv_usec);
+
+	sprintf(content, "%s %s", now_time, s);
+	printf("%s", content);
+}
 
 static void write_remote(struct rdma_cm_id *id, uint32_t len)
 {
