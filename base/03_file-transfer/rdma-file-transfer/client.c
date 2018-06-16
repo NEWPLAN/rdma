@@ -3,6 +3,8 @@
 
 #include "common.h"
 #include "messages.h"
+#include <time.h>
+#include <sys/time.h>
 
 struct client_context
 {
@@ -103,7 +105,8 @@ static void on_pre_conn(struct rdma_cm_id *id)
 
 	post_receive(id);
 }
-
+int first = 1;
+struct timeval start_, now_;
 static void on_completion(struct ibv_wc *wc)
 {
 	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)(wc->wr_id);
@@ -121,8 +124,32 @@ static void on_completion(struct ibv_wc *wc)
 		}
 		else if (ctx->msg->id == MSG_READY)
 		{
-			printf("received READY, sending chunk\n");
+			//printf("received READY, sending chunk\n");
 			send_next_chunk(id);
+			{
+				static long long count = 0;
+				if (first)
+				{
+					gettimeofday(&start_, NULL);
+					//tstart = clock();
+					first = 0;
+				}
+				if ((++count) % 1000 == 0)
+				{
+#define netbyte 1000
+					//clock_t tend = clock();
+					gettimeofday(&now_, NULL);
+					//float time_cost = (tend - tstart) / CLOCKS_PER_SEC;
+					float time_cost = (now_.tv_usec - start_.tv_usec) / 1000000.0 + now_.tv_sec - start_.tv_sec;
+					printf("time cost: %f s, count = %ll\n", time_cost, count);
+					log_info("rate: %f bps, %f Kbps, %f Mbps, %f Gbps\n",
+					         8.0 * BUFFER_SIZE * count / time_cost,
+					         8.0 * BUFFER_SIZE * count / netbyte / time_cost,
+					         8.0 * BUFFER_SIZE * count / netbyte / netbyte / time_cost,
+					         8.0 * BUFFER_SIZE * count / netbyte / netbyte / netbyte / time_cost
+					        );
+				}
+			}
 		}
 		else if (ctx->msg->id == MSG_DONE)
 		{
