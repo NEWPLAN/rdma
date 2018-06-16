@@ -2,7 +2,7 @@
 #define RDMA_MESSAGES_H
 
 const char *DEFAULT_PORT = "12345";
-const size_t BUFFER_SIZE = 1 * 1024 * 1024;
+const size_t BUFFER_SIZE = 5 * 1024 * 1;
 
 enum message_id
 {
