@@ -540,7 +540,8 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			}
 			/**send one tensor...**/
 			//send_tensor(id, 0);
-			
+			post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
+			mem_used++;
 			{
 				struct ibv_recv_wr wr, *bad_wr = NULL;
 				struct ibv_sge sge;
@@ -556,7 +557,6 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				sge.lkey = ctx->k_exch_mr[1]->lkey;
 				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 			}
-			
 		}
 		else if(ctx->k_exch[1]->id>10000)
 		{
@@ -867,7 +867,6 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 	sge.lkey = new_ctx->k_exch_mr[1]->lkey;
 
 	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
-
 
 	for (uint32_t index = 0; index < MAX_CONCURRENCY; index++)
 	{
