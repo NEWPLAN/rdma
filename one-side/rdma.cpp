@@ -344,21 +344,22 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				std::memcpy(_data, recv_data_ptr, size);
 				update_bitmap(ctx, index);
 				int index_=0;
+				char* buf=(char*)_data;
 				while(index_<BUFFER_SIZE)
 				{
-					if('H'==_data[index])
+					if('H'==buf[index_])
 					{
-						_data[index]=0;
+						buf[index_]=0;
 						break;
 					}
 					index_++;
 
 				}
-				std::stringstream sstr((char*)_data);
+				std::stringstream sstr(buf);
 				__int64 val;
 				sstr >> val;
 				std::cout<<val<<std::endl;
-				_data[index_]='H';
+				buf[index_]='H';
 				log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 
