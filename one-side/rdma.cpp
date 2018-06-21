@@ -366,7 +366,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					if('i'==buf[index_] && 'n'==buf[index_+1])
 					{
 						buf[index_+4]=0;
-						index_+=4;
+						index_+=5;
 						break;
 					}
 					index_++;
