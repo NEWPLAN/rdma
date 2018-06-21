@@ -364,7 +364,7 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 	char *_buff = ctx->buffer[index];
 	std::memcpy(_buff, (char *)(&msg_len), sizeof(uint32_t));
 	_buff += sizeof(uint32_t);
-	//std::memcpy(_buff, msg.c_str(), msg_len);
+	std::memcpy(_buff, msg.c_str(), msg_len);
 	//_write_remote(id, msg_len + sizeof(uint32_t), index, IBV_WR_RDMA_WRITE_WITH_IMM);
 	_write_remote(id, BUFFER_SIZE-1, index, IBV_WR_RDMA_WRITE_WITH_IMM);
 	//log_info("send data: %s\n",msg.c_str());
