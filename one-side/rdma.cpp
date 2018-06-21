@@ -231,9 +231,9 @@ static void update_bitmap(struct context *ctx, int index)
 }
 
 
-static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
+static void *concurrency_recv_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, uint32_t &recv_len)
 {
-	struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
+	//struct rdma_cm_id *id = (struct rdma_cm_id *)(uintptr_t)wc->wr_id;
 	struct context *ctx = (struct context *)id->context;
 	void *_data = nullptr;
 
@@ -409,7 +409,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 	}
 	case IBV_WC_SEND:
 	{
-		//log_info("IBV_WC_SEND\n");
+		log_info("IBV_WC_SEND\n");
 		break;
 	}
 	default:
@@ -699,7 +699,7 @@ static void *recv_poll_cq(void *_id)
 				//printf("in receive poll cq\n");
 				void *recv_data = nullptr;
 				uint32_t recv_len;
-				recv_data = concurrency_recv_by_RDMA(&wc[index], recv_len);
+				recv_data = concurrency_recv_by_RDMA(id, &wc[index], recv_len);
 			}
 			else
 			{
