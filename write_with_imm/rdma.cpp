@@ -260,7 +260,8 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 						}
 						index_++;
 					}
-					std::cout<<std::string(buf)<<std::endl;
+					log_info("Recv data: %s\n", _data);
+					std::this_thread:sleep_for(std::chrono::seconds(1));
 					uint64_t val=std::stoull(std::string(buf));
 					buf[index_]='H';
 					while(index_<BUFFER_SIZE)
