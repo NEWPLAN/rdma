@@ -370,8 +370,9 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 						break;
 					}
 					index_++;
-
 				}
+				buf+=index_;
+				std::cout<< buf<<std::endl;
 				log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 
