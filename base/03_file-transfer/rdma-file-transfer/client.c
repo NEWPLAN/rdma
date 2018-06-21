@@ -116,7 +116,7 @@ static void send_next_chunk(struct rdma_cm_id *id)
 
 	static uint64_t ccc=0;
 	if((++ccc)%10000 == 0)
-		printf("time cost %ull us\n",now_time-before_time);
+		printf("time cost %llu us\n",now_time-before_time);
 	before_time=now_time;
 	
 
