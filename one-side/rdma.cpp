@@ -405,7 +405,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					}
 					buf+=index_;
 					int index_id=std::stoi(std::string(buf))
-					*(buf-1)='x';
+					*((char*)buf-1)='x';
 					struct ibv_send_wr wr, *bad_wr = NULL;
 					struct ibv_sge sge;
 
@@ -417,12 +417,12 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					wr.num_sge = 1;
 					wr.send_flags = IBV_SEND_SIGNALED;
 
-					k_exch[0].md5=val
-					k_exch[0].id=index_id+10000;
+					ctx->k_exch[0].md5=val
+					ctx->k_exch[0].id=index_id+10000;
 
-					sge.addr = (uintptr_t)(new_ctx->k_exch[0]);
+					sge.addr = (uintptr_t)(ctx->->k_exch[0]);
 					sge.length = sizeof(_key_exch);
-					sge.lkey = new_ctx->k_exch_mr[0]->lkey;
+					sge.lkey = ctx->k_exch_mr[0]->lkey;
 
 					TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
 					log_info("Recv data: %s\n", _data);
