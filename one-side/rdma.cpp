@@ -418,6 +418,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					wr.send_flags = IBV_SEND_SIGNALED;
 
 					ctx->k_exch[0]->md5=val;
+					
 					ctx->k_exch[0]->id=index_id+10000;
 
 					sge.addr = (uintptr_t)(ctx->k_exch[0]);
