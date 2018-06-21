@@ -343,7 +343,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				memset(_data, 0, size + 1);
 				std::memcpy(_data, recv_data_ptr, size);
 				update_bitmap(ctx, index);
-				log_info("Recv data: %s\n", _data);
+				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 
 			}
@@ -370,7 +370,7 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 
 	
 
-	std::string msg = std::to_string(current_time()) + "Hello, World : index " + std::to_string(index);
+	std::string msg = "Hello, World : index " + std::to_string(index);
 	/*encode msg_length and buffer*/
 	uint32_t msg_len = msg.length();
 
@@ -394,7 +394,7 @@ static void * write_tensor(struct rdma_cm_id *id, uint32_t index)
 {
 	struct context *ctx = (struct context *)id->context;
 
-	std::string msg = "Hello, World : index " + std::to_string(index) + ", random : " + std::to_string(rd());
+	std::string msg = std::to_string(current_time()) + "Hello, World : index " + std::to_string(index) + ", random : " + std::to_string(rd());
 	/*encode msg_length and buffer*/
 	uint32_t msg_len = msg.length();
 
