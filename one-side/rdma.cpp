@@ -345,39 +345,6 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				update_bitmap(ctx, index);
 				
 				static unsigned long long ccc=0;
-				if(0)
-				{
-					int index_=0;
-					char* buf=(char*)_data;
-
-					while(index_<BUFFER_SIZE)
-					{
-						if('H'==buf[index_])
-						{
-							buf[index_]=0;
-							break;
-						}
-						index_++;
-					}
-					long long cur_time=current_time();
-					long long val=std::stoll(std::string(buf));
-					//std::cout<<cur_time-val<<std::endl;
-					buf[index_]='H';
-					while(index_<BUFFER_SIZE)
-					{
-						if('i'==buf[index_] && 'n'==buf[index_+1])
-						{
-							buf[index_+4]=0;
-							index_+=5;
-							break;
-						}
-						index_++;
-					}
-					buf+=index_;
-					
-						std::cout<<"index "<<std::stoi(std::string(buf))<<" cost "<<cur_time-val <<" us"<<std::endl;
-					*(buf-1)='x';
-				}
 				if((++ccc)%1000000 ==0)
 				{
 					int index_=0;
@@ -422,7 +389,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					ctx->k_exch[0]->id=index_id+10000;
 
 					sge.addr = (uintptr_t)(ctx->k_exch[0]);
-					sge.length = sizeof(_key_exch);
+					sge.length = sizeof(_key_exch)-128;
 					sge.lkey = ctx->k_exch_mr[0]->lkey;
 
 					TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
