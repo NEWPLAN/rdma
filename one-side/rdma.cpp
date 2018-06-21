@@ -404,8 +404,8 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 						index_++;
 					}
 					buf+=index_;
-					int index_id=std::stoi(std::string(buf))
-					buf[-1]='x';
+					int index_id=std::stoi(std::string(buf));
+					*(buf-1)='x';
 					struct ibv_send_wr wr, *bad_wr = NULL;
 					struct ibv_sge sge;
 
