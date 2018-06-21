@@ -398,7 +398,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 				if((ccc)%1000000 ==1)
-					printf("after free");
+					printf("%d, after free",ccc);
 
 			}
 		}
