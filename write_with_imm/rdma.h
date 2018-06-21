@@ -45,6 +45,7 @@ typedef struct _key_exchange_
 typedef struct _ack
 {
 	int index;
+	uint64_t cost_time;
 } _ack_;
 
 struct context

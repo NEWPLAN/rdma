@@ -78,7 +78,12 @@ void log_info(const char *format, ...)
 	sprintf(content, "%s %s", now_time, s);
 	printf("%s", content);
 }
-
+long long current_time(void)
+{
+	struct timeval tv;
+    gettimeofday(&tv,NULL);
+	return tv.tv_sec*1000000 + tv.tv_usec;
+}
 /*
 12.12.11.XXX
 */
@@ -149,7 +154,7 @@ static void _post_receive(struct rdma_cm_id *id, uint32_t index)
 	wr.num_sge = 0;
 	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 }
-static void _ack_remote(struct rdma_cm_id *id, uint32_t index)
+static void _ack_remote(struct rdma_cm_id *id, uint32_t index,uint64_t cost_time=0)
 {
 	struct context *new_ctx = (struct context *)id->context;
 
@@ -167,6 +172,7 @@ static void _ack_remote(struct rdma_cm_id *id, uint32_t index)
 	wr.wr.rdma.rkey = new_ctx->peer_rkey[index];
 
 	new_ctx->ack[index]->index = index;
+	new_ctx->ack[index]->cost_time = cost_time;
 
 	{
 		wr.sg_list = &sge;
@@ -225,7 +231,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 		//log_info("recv with IBV_WC_RECV_RDMA_WITH_IMM\n");
 		//log_info("imm_data is %d\n", wc->imm_data);
 		//uint32_t size = ntohl(wc->imm_data);
-		/*
+		
 		uint32_t index = wc->imm_data;
 		uint32_t size = *((uint32_t *)(ctx->buffer[index]));
 		char *recv_data_ptr = ctx->buffer[index] + sizeof(uint32_t);
@@ -239,10 +245,48 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 			exit(-1);
 		}
 		std::memcpy(_data, recv_data_ptr, size);
-		*/
+		
+				//static unsigned long long ccc=0;
+				//if((++ccc)%1000000 ==0)
+				{
+					int index_=0;
+					char* buf=(char*)recv_data_ptr;
+					while(index_<BUFFER_SIZE)
+					{
+						if('H'==buf[index_])
+						{
+							buf[index_]=0;
+							break;
+						}
+						index_++;
+					}
+					uint64_t val=std::stoull(std::string(buf));
+					buf[index_]='H';
+					while(index_<BUFFER_SIZE)
+					{
+						if('i'==buf[index_] && 'n'==buf[index_+1])
+						{
+							buf[index_+4]=0;
+							index_+=5;
+							break;
+						}
+						index_++;
+					}
+					buf+=index_;
+					int index_id=std::stoi(std::string(buf));
+					
+					log_info("Recv data: %s\n", _data);
+					std::cout<<val<<std::endl;
+				}
+				//log_info("Recv data: %s\n", _data);
+				std::free((char*)_data);
+				//if((ccc)%1000000 ==1)
+				//	printf("%d, after free\n",ccc);
+		
+		
 
 		_post_receive(id, wc->imm_data);
-		_ack_remote(id, wc->imm_data);
+		_ack_remote(id, wc->imm_data,val);
 		//log_info("recv data: %s\n", _data);
 		break;
 	}
@@ -304,7 +348,7 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 {
 	struct context *ctx = (struct context *)id->context;
 
-	std::string msg = "Hello, World : index " + std::to_string(index);
+	std::string msg = std::to_string(current_time()) + "Hello, World,"+ "random : " + std::to_string(rd())+ ", index" + std::to_string(index);
 	/*encode msg_length and buffer*/
 	uint32_t msg_len = msg.length();
 
@@ -361,6 +405,8 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 					        8.0* BUFFER_SIZE * count / netbyte / netbyte / time_cost,
 							8.0* BUFFER_SIZE * count / netbyte / netbyte /netbyte/ time_cost
 					        );
+					uint64_t val=current_time();
+					std::cout<<"index "<<wc->imm_data<<" cost " << val-ctx->ack[wc->imm_data]->cost_time<<" us"<<std::endl;
 
 				}
 		break;
