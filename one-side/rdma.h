@@ -6,7 +6,7 @@
 #define _ENABLE_READ_ 
 #include <rdma/rdma_cma.h>
 
-#define MAX_CONCURRENCY 128
+#define MAX_CONCURRENCY 1024
 
 typedef struct _data_list_
 {
