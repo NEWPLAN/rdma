@@ -356,8 +356,9 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					index_++;
 
 				}
+				long long cur_time=current_time();
 				long long val=std::stoll(std::string(buf));
-				std::cout<<val<<std::endl;
+				std::cout<<cur_time-val<<std::endl;
 				buf[index_]='H';
 				log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
