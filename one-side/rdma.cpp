@@ -353,7 +353,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					}
 
 				}
-				std::stringstream sstr(_data);
+				std::stringstream sstr((char*)_data);
 				__int64 val;
 				sstr >> val;
 				std::cout<<val<<std::endl;
