@@ -541,17 +541,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			/**send one tensor...**/
 			//send_tensor(id, 0);
 			
-			
-
-			post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
-			mem_used++;
-		}
-		else if(ctx->k_exch[1]->id>10000)
-		{
-			uint64_t val=current_time();
-			std::cout<<"index "<<ctx->k_exch[1]->id-10000<<"cost time : "<<val-ctx->k_exch[1]->md5<<" us"<<std::endl;
-		}
-		{
+			{
 				struct ibv_recv_wr wr, *bad_wr = NULL;
 				struct ibv_sge sge;
 
@@ -566,6 +556,29 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				sge.lkey = ctx->k_exch_mr[1]->lkey;
 				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 			}
+			
+		}
+		else if(ctx->k_exch[1]->id>10000)
+		{
+			uint64_t val=current_time();
+			std::cout<<"index "<<ctx->k_exch[1]->id-10000<<"cost time : "<<val-ctx->k_exch[1]->md5<<" us"<<std::endl;
+
+			{
+				struct ibv_recv_wr wr, *bad_wr = NULL;
+				struct ibv_sge sge;
+
+				memset(&wr, 0, sizeof(wr));
+
+				wr.wr_id = 12345;
+				wr.sg_list = &sge;
+				wr.num_sge = 1;
+
+				sge.addr = (uintptr_t)(ctx->k_exch[1]);
+				sge.length = sizeof(_key_exch);
+				sge.lkey = ctx->k_exch_mr[1]->lkey;
+				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
+			}
+		}
 		break;
 	}
 	case IBV_WC_RDMA_WRITE:
@@ -855,11 +868,13 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 
 	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 
+/*
 	for (uint32_t index = 0; index < MAX_CONCURRENCY; index++)
 	{
 		//log_info("post recv index : %u\n", index);
 		_post_receive(id, index);
 	}
+	*/
 }
 
 /**server on connection***/
