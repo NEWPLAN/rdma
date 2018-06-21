@@ -388,7 +388,6 @@ static void *concurrency_send_by_RDMA(struct ibv_wc *wc, int &mem_used)
 				if(first)
 				{
 					gettimeofday(&start_, NULL);
-					//tstart = clock();
 					first = false;
 				}
 				if ((++count) % 1000000 == 0)
