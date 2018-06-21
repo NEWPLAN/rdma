@@ -345,7 +345,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				update_bitmap(ctx, index);
 				
 				static unsigned long long ccc=0;
-				if((++ccc)%1000000 ==0)
+				if((++ccc)%10000000 ==0)
 				{
 					int index_=0;
 					char* buf=(char*)recv_data_ptr;
