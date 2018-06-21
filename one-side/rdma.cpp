@@ -357,7 +357,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 
 				}
 				std::stringstream sstr(std::string(buf));
-				__int64 val;
+				long long val;
 				sstr >> val;
 				std::cout<<val<<std::endl;
 				buf[index_]='H';
