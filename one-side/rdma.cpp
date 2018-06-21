@@ -744,7 +744,7 @@ static void *recv_poll_cq(void *_id)
 static void *send_poll_cq(void *_id)
 {
 	struct ibv_cq *cq = NULL;
-	struct ibv_wc wc[MAX_CONCURRENCY * 2];
+	struct ibv_wc wc[MAX_CONCURRENCY * 2+2];
 	struct rdma_cm_id *id = (rdma_cm_id *)_id;
 
 	struct context *ctx = (struct context *)id->context;
@@ -758,7 +758,7 @@ static void *send_poll_cq(void *_id)
 		ibv_ack_cq_events(cq, 1);
 		TEST_NZ(ibv_req_notify_cq(cq, 0));
 
-		int wc_num = ibv_poll_cq(cq, MAX_CONCURRENCY * 2, wc);
+		int wc_num = ibv_poll_cq(cq, MAX_CONCURRENCY * 2+2, wc);
 
 		if (wc_num < 0)
 		{
