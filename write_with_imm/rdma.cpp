@@ -248,7 +248,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 		
 				//static unsigned long long ccc=0;
 				//if((++ccc)%1000000 ==0)
-				{
+				//{
 					int index_=0;
 					char* buf=(char*)recv_data_ptr;
 					while(index_<BUFFER_SIZE)
@@ -277,7 +277,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					
 					log_info("Recv data: %s\n", _data);
 					std::cout<<val<<std::endl;
-				}
+				//}
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 				//if((ccc)%1000000 ==1)
@@ -343,7 +343,8 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 	}
 	return _data;
 }
-
+#include <random>
+std::random_device rd;
 static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 {
 	struct context *ctx = (struct context *)id->context;
