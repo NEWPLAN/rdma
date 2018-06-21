@@ -343,22 +343,22 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				memset(_data, 0, size + 1);
 				std::memcpy(_data, recv_data_ptr, size);
 				update_bitmap(ctx, index);
-				int index_=0;
-				char* buf=(char*)_data;
-
-				while(index_<BUFFER_SIZE)
-				{
-					if('H'==buf[index_])
-					{
-						buf[index_]=0;
-						break;
-					}
-					index_++;
-
-				}
+				
 				static unsigned long long ccc=0;
-				if((++ccc)%1000000 ==0)
+				if(0)
 				{
+					int index_=0;
+					char* buf=(char*)_data;
+
+					while(index_<BUFFER_SIZE)
+					{
+						if('H'==buf[index_])
+						{
+							buf[index_]=0;
+							break;
+						}
+						index_++;
+					}
 					long long cur_time=current_time();
 					long long val=std::stoll(std::string(buf));
 					//std::cout<<cur_time-val<<std::endl;
@@ -377,6 +377,55 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					
 						std::cout<<"index "<<std::stoi(std::string(buf))<<" cost "<<cur_time-val <<" us"<<std::endl;
 					*(buf-1)='x';
+				}
+				if((++ccc)%1000000 ==0)
+				{
+					int index_=0;
+					char* buf=(char*)_data;
+					while(index_<BUFFER_SIZE)
+					{
+						if('H'==buf[index_])
+						{
+							buf[index_]=0;
+							break;
+						}
+						index_++;
+					}
+					uint64_t val=std::stoull(std::string(buf));
+					buf[index_]='H';
+					while(index_<BUFFER_SIZE)
+					{
+						if('i'==buf[index_] && 'n'==buf[index_+1])
+						{
+							buf[index_+4]=0;
+							index_+=5;
+							break;
+						}
+						index_++;
+					}
+					buf+=index_;
+					int index_id=std::stoi(std::string(buf))
+					*(buf-1)='x';
+					struct ibv_send_wr wr, *bad_wr = NULL;
+					struct ibv_sge sge;
+
+					memset(&wr, 0, sizeof(wr));
+
+					wr.wr_id = 12345;
+					wr.opcode = IBV_WR_SEND;
+					wr.sg_list = &sge;
+					wr.num_sge = 1;
+					wr.send_flags = IBV_SEND_SIGNALED;
+
+					k_exch[0].md5=val
+					k_exch[0].id=index_id+10000;
+
+					sge.addr = (uintptr_t)(new_ctx->k_exch[0]);
+					sge.length = sizeof(_key_exch);
+					sge.lkey = new_ctx->k_exch_mr[0]->lkey;
+
+					TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
+	
 				}
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
@@ -525,6 +574,41 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			//send_tensor(id, 0);
 			post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
 			mem_used++;
+			{
+				struct ibv_recv_wr wr, *bad_wr = NULL;
+				struct ibv_sge sge;
+
+				memset(&wr, 0, sizeof(wr));
+
+				wr.wr_id = 12345;
+				wr.sg_list = &sge;
+				wr.num_sge = 1;
+
+				sge.addr = (uintptr_t)(ctx->k_exch[1]);
+				sge.length = sizeof(_key_exch);
+				sge.lkey = ctx->k_exch_mr[1]->lkey;
+				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
+			}
+		}
+		else if(ctx->k_exch[1]->id>10000)
+		{
+			{
+				struct ibv_recv_wr wr, *bad_wr = NULL;
+				struct ibv_sge sge;
+
+				memset(&wr, 0, sizeof(wr));
+
+				wr.wr_id = 12345;
+				wr.sg_list = &sge;
+				wr.num_sge = 1;
+
+				sge.addr = (uintptr_t)(ctx->k_exch[1]);
+				sge.length = sizeof(_key_exch);
+				sge.lkey = ctx->k_exch_mr[1]->lkey;
+				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
+			}
+			uint64_t val=current_time();
+			std::cout<<"index "<<ctx->k_exch[1]->id-10000<<"cost time : "<<val-ctx->k_exch[1]->md5<<" us"<<std::endl;
 		}
 		break;
 	}
