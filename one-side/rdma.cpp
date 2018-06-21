@@ -425,7 +425,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					sge.lkey = new_ctx->k_exch_mr[0]->lkey;
 
 					TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
-	
+					log_info("Recv data: %s\n", _data);
 				}
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
