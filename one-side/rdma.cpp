@@ -632,7 +632,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		std::vector<int> available = send_handle_bitmap(ctx);
 		if (available.size() == 0)
 		{
-			log_info("current pipline is busing sleep for next query, will sleep for 1 seconds\n");
+			//log_info("current pipline is busing sleep for next query, will sleep for 1 seconds\n");
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}
