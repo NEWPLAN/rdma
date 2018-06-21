@@ -356,24 +356,28 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					index_++;
 
 				}
-				long long cur_time=current_time();
-				long long val=std::stoll(std::string(buf));
-				//std::cout<<cur_time-val<<std::endl;
-				buf[index_]='H';
-
-				while(index_<BUFFER_SIZE)
+				static unsigned long long ccc=0;
+				if((++ccc)%1000000 ==0)
 				{
-					if('i'==buf[index_] && 'n'==buf[index_+1])
+					long long cur_time=current_time();
+					long long val=std::stoll(std::string(buf));
+					//std::cout<<cur_time-val<<std::endl;
+					buf[index_]='H';
+					while(index_<BUFFER_SIZE)
 					{
-						buf[index_+4]=0;
-						index_+=5;
-						break;
+						if('i'==buf[index_] && 'n'==buf[index_+1])
+						{
+							buf[index_+4]=0;
+							index_+=5;
+							break;
+						}
+						index_++;
 					}
-					index_++;
+					buf+=index_;
+					
+						std::cout<<"index "<<std::stoi(std::string(buf))<<" cost "<<cur_time-val <<" us"<<std::endl;
+					*(buf-1)='x';
 				}
-				buf+=index_;
-				std::cout<<"index "<<std::stoi(std::string(buf))<<"cost "<<cur_time-val<<std::endl;
-				*(buf-1)='x';
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 
