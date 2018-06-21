@@ -360,7 +360,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				long long val=std::stoll(std::string(buf));
 				std::cout<<cur_time-val<<std::endl;
 				buf[index_]='H';
-				std::string pos2=std::string(buf).find("index");
+				std::string pos2=std::string(buf).find(std::string("index"));
 				std::cout<<pos2<<std::endl;
 				log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
