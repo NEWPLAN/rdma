@@ -345,6 +345,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				update_bitmap(ctx, index);
 				int index_=0;
 				char* buf=(char*)_data;
+				
 				while(index_<BUFFER_SIZE)
 				{
 					if('H'==buf[index_])
