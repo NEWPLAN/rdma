@@ -80,6 +80,13 @@ void log_info(const char *format, ...)
 	printf("%s", content);
 }
 
+long long current_time(void)
+{
+	struct timeval tv;
+    gettimeofday(&tv,NULL);
+	return tv.tv_sec*1000000 + tv.tv_usec;
+}
+
 /*
 12.12.11.XXX
 */
@@ -361,7 +368,9 @@ static void *send_tensor(struct rdma_cm_id *id, uint32_t index)
 {
 	struct context *ctx = (struct context *)id->context;
 
-	std::string msg = "Hello, World : index " + std::to_string(index);
+	
+
+	std::string msg = std::to_string(current_time()) + "Hello, World : index " + std::to_string(index);
 	/*encode msg_length and buffer*/
 	uint32_t msg_len = msg.length();
 
