@@ -96,6 +96,15 @@ static void post_receive(struct rdma_cm_id *id)
 	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 }
 
+long long current_time(void)
+{
+	struct timeval tv;
+    gettimeofday(&tv,NULL);
+	return tv.tv_sec*1000000 + tv.tv_usec;
+}
+
+uint64_t before_time=0;
+
 static void send_next_chunk(struct rdma_cm_id *id)
 {
 	struct client_context *ctx = (struct client_context *)id->context;
@@ -103,6 +112,13 @@ static void send_next_chunk(struct rdma_cm_id *id)
 	ssize_t size = BUFFER_SIZE;
 
 	//size = read(ctx->fd, ctx->buffer, BUFFER_SIZE);
+	uint64_t now_time=current_time();
+
+	static uint64_t ccc=0;
+	if((++ccc)%10000 == 0)
+		printf("time cost %ull us\n",not_time-before_time);
+	before=now_time;
+	
 
 	if (size == -1)
 		rc_die("read() failed\n");

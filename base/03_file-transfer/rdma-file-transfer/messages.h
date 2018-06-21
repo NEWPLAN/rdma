@@ -17,6 +17,8 @@ struct message
 {
 	int id;
 
+	uint64_t time_cost;
+
 	union
 	{
 		struct
