@@ -313,7 +313,7 @@ static void *concurrency_recv_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		{
 			//log_info("current pipline is busing sleep for next query, will sleep 1 seconds\n");
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			std::this_thread::sleep_for(std::chrono::microseconds(50));
+			std::this_thread::sleep_for(std::chrono::microseconds(5));
 		}
 		else
 		{
@@ -636,7 +636,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		{
 			//log_info("current pipline is busing sleep for next query, will sleep for 1 seconds\n");
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1));
-			std::this_thread::sleep_for(std::chrono::microseconds(100));
+			std::this_thread::sleep_for(std::chrono::microseconds(5));
 		}
 		else
 		{
