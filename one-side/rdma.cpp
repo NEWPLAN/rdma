@@ -343,7 +343,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				memset(_data, 0, size + 1);
 				std::memcpy(_data, recv_data_ptr, size);
 				update_bitmap(ctx, index);
-				//log_info("Recv data: %s\n", _data);
+				log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 
 			}
