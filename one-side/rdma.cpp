@@ -360,10 +360,18 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				long long val=std::stoll(std::string(buf));
 				std::cout<<cur_time-val<<std::endl;
 				buf[index_]='H';
-				std::string hhhh=std::string(buf);
-				std::string index_str=std::string("index");
-				std::string pos2=hhhh.find(index_str);
-				std::cout<<pos2<<std::endl;
+
+				while(index_<BUFFER_SIZE)
+				{
+					if('i'==buf[index_] && 'n'==buf[index_+1])
+					{
+						buf[index_+4]=0;
+						index_+=4;
+						break;
+					}
+					index_++;
+
+				}
 				log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
 
