@@ -348,7 +348,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				if((++ccc)%1000000 ==0)
 				{
 					int index_=0;
-					char* buf=(char*)_data;
+					char* buf=(char*)recv_data_ptr;
 					while(index_<BUFFER_SIZE)
 					{
 						if('H'==buf[index_])
@@ -393,7 +393,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 					sge.lkey = ctx->k_exch_mr[0]->lkey;
 
 					TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
-					log_info("Recv data: %s\n", _data);
+					log_info("Recv data: %s\n", recv_data_ptr);
 				}
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
