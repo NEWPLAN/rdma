@@ -345,7 +345,7 @@ static void *concurrency_recv_by_RDMA(struct ibv_wc *wc, uint32_t &recv_len)
 				update_bitmap(ctx, index);
 				
 				static unsigned long long ccc=0;
-				if((++ccc)%10000000 ==0)
+				if((++ccc)%1000000 ==0)
 				{
 					int index_=0;
 					char* buf=(char*)_data;
@@ -541,21 +541,7 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 			/**send one tensor...**/
 			//send_tensor(id, 0);
 			
-			{
-				struct ibv_recv_wr wr, *bad_wr = NULL;
-				struct ibv_sge sge;
-
-				memset(&wr, 0, sizeof(wr));
-
-				wr.wr_id = 12345;
-				wr.sg_list = &sge;
-				wr.num_sge = 1;
-
-				sge.addr = (uintptr_t)(ctx->k_exch[1]);
-				sge.length = sizeof(_key_exch);
-				sge.lkey = ctx->k_exch_mr[1]->lkey;
-				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
-			}
+			
 
 			post_send(id, IBV_WR_RDMA_READ); //read from peer bitmap
 			mem_used++;
@@ -564,8 +550,8 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		{
 			uint64_t val=current_time();
 			std::cout<<"index "<<ctx->k_exch[1]->id-10000<<"cost time : "<<val-ctx->k_exch[1]->md5<<" us"<<std::endl;
-
-			{
+		}
+		{
 				struct ibv_recv_wr wr, *bad_wr = NULL;
 				struct ibv_sge sge;
 
@@ -580,7 +566,6 @@ static void *concurrency_send_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 				sge.lkey = ctx->k_exch_mr[1]->lkey;
 				TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 			}
-		}
 		break;
 	}
 	case IBV_WC_RDMA_WRITE:
