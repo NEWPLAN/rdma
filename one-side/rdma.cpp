@@ -868,12 +868,13 @@ static void _on_pre_conn(struct rdma_cm_id *id)
 
 	TEST_NZ(ibv_post_recv(id->qp, &wr, &bad_wr));
 
+/*
 	for (uint32_t index = 0; index < MAX_CONCURRENCY; index++)
 	{
 		//log_info("post recv index : %u\n", index);
 		_post_receive(id, index);
 	}
-	
+*/	
 }
 
 /**server on connection***/
