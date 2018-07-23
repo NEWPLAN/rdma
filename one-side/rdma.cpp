@@ -397,7 +397,8 @@ static void *concurrency_recv_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 					sge.lkey = ctx->k_exch_mr[0]->lkey;
 
 					TEST_NZ(ibv_post_send(id->qp, &wr, &bad_wr));
-					log_info("Recv data: %s\n", _data);
+					LOG(INFO) << "receive data: " << _data;
+					//log_info("Recv data: %s\n", _data);
 				}
 				//log_info("Recv data: %s\n", _data);
 				std::free((char*)_data);
