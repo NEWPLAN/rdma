@@ -3,6 +3,7 @@
 #define __RDMA_SLOW__ 1
 
 #include <rdma/rdma_cma.h>
+#include <glog/logging.h>
 
 //50 M for default size;
 
@@ -412,7 +413,8 @@ static void *concurrency_recv_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 	}
 	case IBV_WC_SEND:
 	{
-		log_info("IBV_WC_SEND\n");
+		//log_info("IBV_WC_SEND\n");
+		LOG(INFO) << "IBV_WC_SEND";
 		break;
 	}
 	default:
@@ -1156,6 +1158,8 @@ void help(void)
 
 int main(int argc, char const *argv[])
 {
+	google::InitGoogleLogging(argv[0]);
+    google::LogToStderr();
 	Adapter rdma_adapter;
 	switch (argc)
 	{
@@ -1168,8 +1172,9 @@ int main(int argc, char const *argv[])
 		rdma_client_init(rdma_adapter);
 	default:
 		help();
-		exit(-1);
+		//exit(-1);
 		break;
 	}
+	google::ShutdownGoogleLogging();
 	return 0;
 }

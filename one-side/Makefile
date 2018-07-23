@@ -1,8 +1,8 @@
 .PHONY: clean
 
-CFLAGS  := -Wall -g -std=c++11
+CFLAGS  := -Wall -g -std=c++11 
 LD      := g++
-LDLIBS  := ${LDLIBS} -lrdmacm -libverbs -lpthread
+LDLIBS  := ${LDLIBS} -lrdmacm -libverbs -lpthread -lglog
 
 APPS    := rdma
 
