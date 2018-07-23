@@ -7,7 +7,7 @@
 
 //50 M for default size;
 
-#define message_size_in_kb 1
+#define message_size_in_kb 5
 
 const size_t BUFFER_SIZE = message_size_in_kb * 1 * 1024 + 1;
 #define TIMEOUT_IN_MS 500
@@ -418,6 +418,7 @@ static void *concurrency_recv_by_RDMA(struct rdma_cm_id *id, struct ibv_wc *wc, 
 		break;
 	}
 	default:
+	LOG(INFO) << wc->opcode;
 		break;
 	}
 	return _data;
@@ -695,6 +696,10 @@ static void *recv_poll_cq(void *_id)
 		TEST_NZ(ibv_req_notify_cq(cq, 0));
 
 		int wc_num = ibv_poll_cq(cq, MAX_CONCURRENCY * 2, wc);
+		if(wc_num < 0)
+		{
+			LOG(INFO) << "error in wc num: " << wc_num;
+		}
 
 		for (int index = 0; index < wc_num; index++)
 		{
